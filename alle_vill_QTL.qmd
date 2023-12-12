@@ -1,0 +1,46 @@
+---
+title: "alle_vill_QTL"
+author: "Julia Harenčár"
+execute:
+  echo: true #will keep code chunks
+  warning: false #removes warning functions
+format:
+  html:
+    self-contained: true #makes one html file to render that is sharable
+    page-layout: full #uses the full page
+    code-fold: true #lets user fold up codes
+    code-tools: true #makes an option in the upper left for users to reveal/hide all code and copy source code
+    #makes long lines of code rap
+    code-overflow: wrap
+    #makes table of contents
+    toc: true
+    #sets location of table of contents
+    toc-location: left
+#set theme settings. in this case user can switch between light and dark mode
+theme:
+  #give light option
+  light: flatly
+  #give dark option
+  dark: darkly
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
