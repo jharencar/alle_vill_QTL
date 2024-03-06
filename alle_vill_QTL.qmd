@@ -6,41 +6,378 @@ execute:
   warning: false #removes warning functions
 format:
   html:
+    #makes long lines of code rap
+    #makes table of contents
+    #sets location of table of contents
     self-contained: true #makes one html file to render that is sharable
     page-layout: full #uses the full page
     code-fold: true #lets user fold up codes
     code-tools: true #makes an option in the upper left for users to reveal/hide all code and copy source code
-    #makes long lines of code rap
     code-overflow: wrap
-    #makes table of contents
     toc: true
-    #sets location of table of contents
     toc-location: left
-#set theme settings. in this case user can switch between light and dark mode
 theme:
   #give light option
-  light: flatly
   #give dark option
+  light: flatly
   dark: darkly
+editor_options: 
+  chunk_output_type: console
 ---
 
-## Quarto
+## QTL building for *C. allenii* x *C. villosissimus*
+```{r}
+# loading packages etc
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(patchwork)
+theme_set(theme_bw())
+library("DHARMa")
 
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+library("car")
+library("lme4")
+library("glmmTMB")
+```
+### Local ancestry
 
-## Running Code
-
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+We conducted local ancestry assignment with aHMM from AncestryInfer (Schumer et al. 2020?). 
 
 ```{r}
-1 + 1
+library(cowplot)
+
+# # test plots - Mapping population F2s and F3s run without masking bad sites, but with higher error rate (0.02)
+# directory <- "./test_mapping_pop_chr1/"
+# chromosome <- "chr1"
+# 
+# files <- list.files(directory, pattern = "*posterior")
+# IDs <- substr(files, 1, 9)
+# 
+# plot_list = list()
+# for (i in 1:length(files)) {
+#   post <- read_tsv(paste0(directory, files[i]))
+#   # rename cols 
+#   names(post) <- c("chrom", "position", "ref_homo", "het", "alt_homo")
+#   # Filter out posteriors with a 0.9 threshold and create allele frequency cols for plotting
+#   post <- post %>% 
+#     filter(ref_homo > 0.9 | alt_homo > 0.9 | het > 0.9) %>% 
+#     mutate (ancestry = ref_homo+het*0.5)
+#   p <- ggplot(post, aes(position, ancestry)) + 
+#     ggtitle(paste(IDs[i], chromosome)) +
+#     geom_point() +
+#     ylim(-0.01,1.01)
+#   plot_list[[i]] = p
+# }  
+# 
+# 
+# # PICKUP - what I want to try above - change the p to be an iterative object so it just saves plots to different object names rather than to a list, or figure out how to get the fucking list to work... 
+# 
+# # for (i in 1:length(files)) {
+# # paste([i], chromosome)
+# # } 
+# 
+# test <- plot_list[[1]] + plot_list[[2]] + plot_list[[3]] + plot_list[[4]] + 
+#           plot_list[[5]] + plot_list[[6]] + plot_list[[7]] + plot_list[[8]] +
+#           plot_list[[9]] + plot_list[[10]] + plot_list[[11]] + plot_list[[12]] +
+#           plot_list[[13]] + plot_list[[14]] + plot_list[[15]]
+# 
+# pdf("chr1.plots.pdf", height = 50)
+# plot_grid(plot_list[[1]], plot_list[[2]], plot_list[[3]], plot_list[[4]], 
+#           plot_list[[5]], plot_list[[6]], plot_list[[7]], plot_list[[8]],
+#           plot_list[[9]], plot_list[[10]], plot_list[[11]], plot_list[[12]],
+#           plot_list[[13]], plot_list[[14]], plot_list[[15]],
+#           nrow = 8,
+#           ncol = 2)
+# dev.off()
+
+
+# VB_21_298_all_chrs <- chr1_21_298 + chr2_21_298 + chr3_21_298 + chr4_21_298 + chr5_21_298 + chr6_21_298 + chr7_21_298 + chr8_21_298 + chr9_21_298 + plot_layout(ncol = 3)
+#  
+# ggsave("aHMM/H_19.539_all_chrs_low_error_aHMM_plot.pdf", H_19.539_all_chrs, units = "mm", width = 500, height = 375)
+
+```
+### Trait Data
+#### Mapping population
+All trait data are from F3s generated from the selfed seed of XX F2 parents. The F2 parent were grown in the greenhouse from seeds created by selfing a wild F1.
+#### Cleaning/compiling
+```{r}
+compiled_growth <- read.csv("data_cleaning/all_growth.csv")
+all_growth <- read.csv("data_cleaning/F3_alle_vill_growth.csv")
+merged_growth <- merge(compiled_growth, all_growth, by = "ID", all = TRUE)
+write.csv(merged_growth, "data_cleaning/merged_growth.csv", row.names = FALSE)
+
+compiled <- read.csv("F3_alle_vill_compiled_traits.csv", header = T)
+LMA <- read.csv("data_cleaning/LMA.csv", header = T)
+merged_LMA <- merge(compiled, LMA, by = "ID", all = TRUE)
+write.csv(merged_LMA, "data_cleaning/merged_LMA.csv", row.names = FALSE)
+
 ```
 
-You can add options to executable code like this
+
+#### Traits
+```{r}
+# read in data
+compiled <- read.csv("F3_alle_vill_compiled_traits.csv", header = T)
+
+# calculate growth rate in cm/day
+compiled <- compiled %>% 
+  mutate(GR_cm.dy = total_growth/GR.days)
+
+# calculate Leaf Mass per Area (LMA)
+compiled <- compiled %>% 
+  mutate(lma = dry.g/area)
+
+# calculate Leaf Dry Matter Content (LDMC)
+compiled <- compiled %>% 
+  mutate(ldmc = dry.g/wet.g)
+
+# separate into alle, vill, and F3
+# ALLE
+ALLE_compiled <- compiled %>% 
+  filter(type == "ALLE")
+
+# VILL
+VILL_compiled <- compiled %>% 
+  filter(type == "VILL")
+
+# F3
+F3_compiled <- compiled %>% 
+  filter(type == "F3")
+```
+
+We selected traits involved in divergent habitat adaptation for genetic mapping.
+##### Seed Dormancy
 
 ```{r}
-#| echo: false
-2 * 2
+### Inspect seed dormancy data:
+aggregate(compiled$days_to_radicle, list(compiled$type), FUN = function(x) mean(x, na.rm = TRUE)) 
+#    ALLE  20.39474
+#      F3  34.00248
+#    VILL 137.25000
+
+## ALLE
+hist(ALLE_compiled$days_to_radicle, breaks =50)
+
+# test for possibility of normal distribution
+shapiro.test(ALLE_compiled$days_to_radicle) # def not normal; p = 2.005e-06
+
+## PICKUP - check other distributuions - start with poisson? exponential? 
+# QQ plots of different fits 
+qqp(ALLE_compiled$days_to_radicle, "norm")
+qqp(ALLE_compiled$days_to_radicle, "lnorm") 
+shapiro.test(log(ALLE_compiled$days_to_radicle)) # still decidedly not normal... ; p-value = 0.0002
+# Generate quantiles of a Poisson distribution with the same mean as your data
+poisson_quantiles <- qpois(ppoints(length(ALLE_compiled$days_to_radicle)), lambda = mean(ALLE_compiled$days_to_radicle, na.rm = TRUE))
+# Create the QQ plot
+qqplot(poisson_quantiles, ALLE_compiled$days_to_radicle, xlab = "Theoretical Quantiles (Poisson)", ylab = "Sample Quantiles", main = "QQ Plot: Poisson Distribution")
+# Add a reference line
+abline(0, 1, col = "red") # doesn't line up well..
+
+# VILL
+hist(VILL_compiled$days_to_radicle, breaks =50)
+shapiro.test(VILL_compiled$days_to_radicle) # crazy not normal; p = 1.461e-14
+
+## F3
+hist(F3_compiled$days_to_radicle, breaks =50)
+shapiro.test(F3_compiled$days_to_radicle) # also super not normal; p < 2.2e-16 
+
+### Plot together
+#ggplot()
+#PICKUP! - No F2 data, correct? bummer... 
+dormancy <- ggplot(compiled, aes(x=type, y=days_to_radicle, fill=type)) +
+  geom_violin() +
+  stat_summary(fun.data = mean_cl_normal, geom = "pointrange", size = .3, show.legend = FALSE) +
+  scale_fill_manual(values = c("VILL" = "#FFD700", "ALLE" = "#cc79a7", "F3" = "#56B4E9"),
+                    labels = c(expression(italic("C. villosissimus")), expression(italic("C. allenii")), expression(italic("F3")))) +
+  theme(legend.text.align = 0) +
+  labs(x = NULL, y = "seed dormancy", fill = NULL)
+
+
+# plot with white boxplots instead of mean and CI 
+# ggplot(compiled, aes(x=type, y=days_to_radicle, fill=type)) +
+#   geom_violin() +
+#   geom_boxplot(width = 0.2, fill = "white", outlier.shape = NA) + 
+#   scale_fill_manual(values = c("VILL" = "#FFD700", "ALLE" = "#cc79a7", "F3" = "#56B4E9"),labels = c(expression(italic("C. villosissimus")), expression(italic("C. allenii")), expression(italic("F3"))))
+
+# save plot
+ggsave("trait_plots/dormancy.pdf", dormancy, device = "pdf", units = "mm", width = 130, height = 110)
+
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+##### Growth Rate
+
+```{r}
+### Inspect growth rate data:
+# getting un-transformed averages
+aggregate(compiled$GR_cm.dy, list(compiled$type), FUN = function(x) mean(x, na.rm = TRUE)) 
+#  ALLE 0.3436
+#    F3 0.4888
+#  VILL 0.5045
+
+## ALLE
+hist(ALLE_compiled$GR_cm.dy, breaks =20)
+# test for possibility of normal distribution
+shapiro.test(ALLE_compiled$GR_cm.dy) # probs normal; p = 0.4364
+
+# VILL
+hist(VILL_compiled$GR_cm.dy, breaks =20) # skewed... maybe investigate the unusual low vals - or don't worry bc not data in the analysis... 
+shapiro.test(VILL_compiled$GR_cm.dy) # not normal; p = 0.0004607
+
+## F3
+hist(F3_compiled$GR_cm.dy, breaks =20)
+shapiro.test(F3_compiled$GR_cm.dy) # probs normal; p = 0.5016
+### Plot together
+#ggplot()
+#PICKUP! - No F2 data, correct? bummer... 
+growth_rate <- ggplot(compiled, aes(x=type, y=GR_cm.dy, fill=type)) +
+  geom_violin() +
+  stat_summary(fun.data = mean_cl_normal, geom = "crossbar", width = 0.2, fill = "white") +
+  scale_fill_manual(values = c("VILL" = "#FFD700", "ALLE" = "#cc79a7", "F3" = "#56B4E9"),
+                    labels = c(expression(italic("C. villosissimus")), expression(italic("C. allenii")), expression(italic("F3")))) +
+  theme(legend.text.align = 0)
+
+# save plot
+#ggsave("trait_plots/growth_rate.pdf", growth_rate , device = "pdf", units = "mm", width = 130, height = 110)
+
+# quick t-test
+AV <- compiled %>% filter(type != "F3")
+t.test(AV$GR_cm.dy ~ AV$type, paired = F) # p-value = 2.101e-08
+
+# look at cohort as a random effect and fixed to see vals
+shapiro.test(F3_compiled$GR_cm.dy) # 0.4 - and it looks normal
+simp <- lm(GR_cm.dy ~ GR.M2.date,
+     data=F3_compiled)
+summary(simp) # cohort definitely has important effect, with three particularly odd cohorts
+
+# Whole dataset
+more <- lmer(GR_cm.dy ~ type + (1 | GR.M2.date),
+     data = compiled)
+summary(more)
+
+# Summary plot without promlematic cohorts:
+GR_subset <- compiled %>% filter(!(GR.M2.date %in% c("8/22/22", "11/21/22", "11/28/22")))
+
+GR_subset_AV <- GR_subset %>% filter(type != "F3")
+t.test(GR_subset_AV$GR_cm.dy ~ GR_subset_AV$type, paired = F) # difference becomes more pronounced without weird cohorts -> p-value = 6.361e-11
+growth_rate_subset <- ggplot(GR_subset, aes(x=type, y=GR_cm.dy, fill=type)) +
+  geom_violin() +
+  stat_summary(fun.data = mean_cl_normal, geom = "pointrange", size = .3, show.legend = FALSE) +
+  scale_fill_manual(values = c("VILL" = "#FFD700", "ALLE" = "#cc79a7", "F3" = "#56B4E9"),
+                    labels = c(expression(italic("C. villosissimus")), expression(italic("C. allenii")), expression(italic("F3")))) +
+  theme(legend.text.align = 0) +
+  labs(x = NULL, y = "growth rate", fill = NULL)
+
+# save plot
+ggsave("trait_plots/growth_rate_subset.pdf", growth_rate_subset , device = "pdf", units = "mm", width = 130, height = 110)
+
+# if high enough sample sizes, maybe just leave out those bad cohorts from trait distrubution figs/any analysis...? Then use all data in QTL, but include cohort as random effect!!!
+
+compiled %>% filter(type == "ALLE" & !is.na(GR_cm.dy)) %>% nrow() # 38
+GR_subset %>% filter(type == "ALLE" & !is.na(GR_cm.dy)) %>% nrow() # 38 (doesn't remove any?!)
+
+compiled %>% filter(type == "VILL" & !is.na(GR_cm.dy)) %>% nrow() # 85
+GR_subset %>% filter(type == "VILL" & !is.na(GR_cm.dy)) %>% nrow() # 78 (removes 7)
+
+compiled %>% filter(type == "F3" & !is.na(GR_cm.dy)) %>% nrow() # 400
+GR_subset %>% filter(type == "F3" & !is.na(GR_cm.dy)) %>% nrow() # 368 (removes 32)
+
+# Yay! sounds fine to me to remove those dates for looking at trait distributions in parents v F3s!
+```
+
+##### Leaf Dry Matter Content
+```{r}
+### Inspect data:
+# check 
+# getting un-transformed averages
+aggregate(compiled$lma, list(compiled$type), FUN = function(x) mean(x, na.rm = TRUE)) 
+#    ALLE 0.004857662
+#      BC 0.003831418
+#      F3 0.004754916
+#    VILL         NaN
+
+## ALLE
+hist(ALLE_compiled$lma, breaks =20)
+# test for possibility of normal distribution
+shapiro.test(ALLE_compiled$lma) # probs normalish; p = 0.06068
+
+# VILL #PICKUP when I have the data
+hist(VILL_compiled$lma, breaks =20) # 
+shapiro.test(VILL_compiled$lma) # 
+
+## F3
+hist(F3_compiled$lma, breaks =20)
+shapiro.test(F3_compiled$lma) # probs normal; p = 0.6598
+### Plot together
+#PICKUP! - No F2 data, correct?
+LMA <- ggplot(compiled, aes(x=type, y=lma, fill=type)) +
+  geom_violin() +
+  stat_summary(fun.data = mean_cl_normal, geom = "crossbar", width = 0.2, fill = "white") +
+  scale_fill_manual(values = c("VILL" = "#FFD700", "ALLE" = "#cc79a7", "F3" = "#56B4E9"),
+                    labels = c(expression(italic("C. villosissimus")), expression(italic("C. allenii")), expression(italic("F3"))))
+                    #,labels = c(expression(italic("C. villosissimus")), expression(italic("C. allenii")), expression(italic("F3"))))
+
+# Doesn't look right at all, looks like no diff between alle and vill...
+# FUUUUCK! crazy variable across cohorts... trash
+shapiro.test(F3_compiled$lma) # 0.6 
+simp <- lm(lma ~ GR.M2.date,
+     data=F3_compiled)
+summary(simp)
+
+more <- lmer(lma ~ type + (1 | GR.M2.date),
+     data = compiled)
+summary(more)
+
+############ looking at ldmc instead bc just weight measurements, not area
+aggregate(compiled$ldmc, list(compiled$type), FUN = function(x) mean(x, na.rm = TRUE)) 
+
+LDMC <- ggplot(compiled, aes(x=type, y=ldmc, fill=type)) +
+  geom_violin() +
+  stat_summary(fun.data = mean_cl_normal, geom = "pointrange", size = .3, show.legend = FALSE) +
+  scale_fill_manual(values = c("VILL" = "#FFD700", "ALLE" = "#cc79a7", "F3" = "#56B4E9"),
+                    labels = c(expression(italic("C. allenii")), expression(italic("F3")), expression(italic("C. villosissimus")))) +
+  theme(legend.text.align = 0) +
+  labs(x = NULL, y = "LDMC", fill = NULL)
+
+# save plot
+ggsave("trait_plots/LDMC.pdf", LDMC , device = "pdf", units = "mm", width = 130, height = 110)
+
+simp <- lm(ldmc ~ GR.M2.date,
+     data=F3_compiled)
+summary(simp)
+
+more <- lmer(ldmc ~ type + (1 | GR.M2.date),
+     data = compiled)
+summary(more)
+
+# Maybe also consider leaf moisture - calculated as the difference between leaf fresh mass and leaf dry mass (mass of water) as a percent of leaf dry mass (%).
+
+### area measurements are definitely the issue. 
+```
+
+##### TEMP Senescence
+Need to update once we have full dataset from Jenn - add to compiled datasheet/filter based on plants with seq data
+```{r}
+### Inspect data:
+# Import data
+sen <- read.csv("clean_wide_C_N.csv", header = T)
+
+# calculate N reabsorption
+sen <- sen %>% 
+  mutate(N_reabsorp = (1 - (N_wght_p_DEAD/N_wght_p_GREEN)) * 100)
+
+# getting un-transformed averages
+aggregate(sen$N_reabsorp, list(sen$species), FUN = function(x) mean(x, na.rm = TRUE)) 
+#    ALLE 26.32518
+#      F3 32.09764
+#    VILL 62.93173
+
+### Plot together
+N_reabsorption <- ggplot(sen, aes(x=species, y=N_reabsorp , fill=species)) +
+  geom_violin() +
+  geom_boxplot(width = 0.2, fill = "white", outlier.shape = NA) + 
+  scale_fill_manual(values = c("VILL" = "#FFD700", "ALLE" = "#cc79a7", "F3" = "#56B4E9"))
+                    #,labels = c(expression(italic("C. villosissimus")), expression(italic("C. allenii")), expression(italic("F3"))))
+
+# save plot
+ggsave("trait_plots/N_reabsorption.pdf", N_reabsorption , device = "pdf", units = "mm", width = 140, height = 100)
+```
