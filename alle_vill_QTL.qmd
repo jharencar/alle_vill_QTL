@@ -29,18 +29,18 @@ editor_options:
 ```{r}
 # loading packages etc
 library(dplyr)
+library(tidyr)
 library(readr)
 library(ggplot2)
 library(patchwork)
 theme_set(theme_bw())
 library("DHARMa")
-
 library("car")
 library("lme4")
 library("glmmTMB")
 ```
-### Local ancestry
 
+### Local ancestry
 We conducted local ancestry assignment with aHMM from AncestryInfer (Schumer et al. 2020?). 
 
 ```{r}
@@ -96,23 +96,108 @@ library(cowplot)
 # ggsave("aHMM/H_19.539_all_chrs_low_error_aHMM_plot.pdf", H_19.539_all_chrs, units = "mm", width = 500, height = 375)
 
 ```
+
+### LEP-MAP3 input file generation
+See "generate_lepmap_input_files.R"
+
 ### Trait Data
 #### Mapping population
 All trait data are from F3s generated from the selfed seed of XX F2 parents. The F2 parent were grown in the greenhouse from seeds created by selfing a wild F1.
+
 #### Cleaning/compiling
 ```{r}
-compiled_growth <- read.csv("data_cleaning/all_growth.csv")
-all_growth <- read.csv("data_cleaning/F3_alle_vill_growth.csv")
-merged_growth <- merge(compiled_growth, all_growth, by = "ID", all = TRUE)
-write.csv(merged_growth, "data_cleaning/merged_growth.csv", row.names = FALSE)
+# compiled_growth <- read.csv("data_cleaning/all_growth.csv")
+# all_growth <- read.csv("data_cleaning/F3_alle_vill_growth.csv")
+# merged_growth <- merge(compiled_growth, all_growth, by = "ID", all = TRUE)
+# write.csv(merged_growth, "data_cleaning/merged_growth.csv", row.names = FALSE)
+# 
+# compiled <- read.csv("F3_alle_vill_compiled_traits.csv", header = T)
+# LMA <- read.csv("data_cleaning/LMA.csv", header = T)
+# merged_LMA <- merge(compiled, LMA, by = "ID", all = TRUE)
+# write.csv(merged_LMA, "data_cleaning/merged_LMA.csv", row.names = FALSE)
 
-compiled <- read.csv("F3_alle_vill_compiled_traits.csv", header = T)
-LMA <- read.csv("data_cleaning/LMA.csv", header = T)
-merged_LMA <- merge(compiled, LMA, by = "ID", all = TRUE)
-write.csv(merged_LMA, "data_cleaning/merged_LMA.csv", row.names = FALSE)
+#### Add in last batch of leaf N data ####
+# lf_n <- read.csv("Leaf_N_last_batch.csv", header = T)
+# 
+# # start fixing IDs
+# lf_n <- lf_n %>%
+#   separate("Sample.ID", into = c("Sample_ID", "grn.dead"), sep = " ") %>% 
+#   mutate(Sample_ID = gsub("-", "_", Sample_ID))
+# 
+# # write out for manual edits
+# write.csv(lf_n, "data_cleaning/lf_n_last_batch_to_clean.csv", row.names = FALSE)
+# 
+# # re-import after ID cleanup
+# lf_n <- read.csv("data_cleaning/lf_n_last_batch_to_clean_fixedIDs_dups_rmd.csv", header = T)
+# 
+# # Select only the columns of interest:
+# new_n_long <- lf_n %>% select(ID,GREENvDEAD,N_wght_p,date)
+# 
+# # import the rest of the data and combine
+# old_n_long <- read.csv("data_cleaning/clean_long_C_N.csv", header = T)
+# comb_n_long <- full_join(new_n_long, old_n_long, by=c("ID", "GREENvDEAD","N_wght_p"))
+# 
+# # find and remove duplicates
+# comb_n_long %>%
+#   group_by(ID, GREENvDEAD) %>%
+#   summarise(n = n(), .groups = "drop") %>%
+#   filter(n > 1L) 
+# 
+# comb_n_long <- comb_n_long %>% 
+#   filter(!(ID %in% c("165_009_14", "165_009_17", "165_009_172", "VILL_GG_0007_29", "VILL_GG_0007_69")))
+# 
+# # pivot wide to have one col per id with green and dead leaf nitrogen cols
+# comb_n_wide <- comb_n_long %>%
+#   pivot_wider(
+#     id_cols = c("ID"),
+#     names_from = c("GREENvDEAD"),
+#     values_from = c("N_wght_p"),
+#     names_sep = "_")
+# 
+# # write out for manual check and edits - addition of species name
+# write.csv(comb_n_wide, "data_cleaning/full_lf_n_wide.csv", row.names = FALSE)
+# 
+# # Now we add it to the full dataset:
+# compiled <- read.csv("F3_alle_vill_compiled_traits.csv", header = T)
+# lf_n_clean <- read.csv("full_lf_n_wide_clean.csv", header = T)
+# compiled_w_n <- full_join(compiled, lf_n_clean, by="ID")
+# 
+# # print to check
+# write.csv(compiled_w_n, "data_cleaning/compiled_w_n_4cleaning.csv", row.names = FALSE)
 
+#### Add in last batch of SPAD data ####
+# last_spad <- read.csv("last_batch_SPAD.csv", header = T)
+# 
+# # convert to wide format:
+# last_spad_wide <- last_spad %>% 
+#   group_by(ID) %>% 
+#   summarise(DD_date_start = first(DD_date_start),
+#     PER1_start = first(PER1_start),
+#     PER2_start = first(PER2_start),
+#     Grn.SPAD_start = first(Grn.SPAD_start),
+#     date_end = last(date_end),
+#     PER1_end = last(PER1_end),
+#     PER2_end = last(PER2_end),
+#     Dry.SPAD_end = last(Dry.SPAD_end))
+# 
+# # add data to compiled
+# compiled <- read.csv("F3_alle_vill_compiled_traits_miss_last_SPAD.csv", header = T)
+# 
+# compiled_w_ls_spad <- compiled %>%
+#   left_join(last_spad_wide, by = "ID") %>% 
+#   mutate(DD_date_start = coalesce(DD_date_start.x, DD_date_start.y),
+#          PER1_start = coalesce(PER1_start.x, PER1_start.y),
+#          PER2_start = coalesce(PER2_start.x, PER2_start.y),
+#          Grn.SPAD_start = coalesce(Grn.SPAD_start.x, Grn.SPAD_start.y),
+#          date_end = coalesce(date_end.x, date_end.y),
+#          PER1_end = coalesce(PER1_end.x, PER1_end.y),
+#          PER2_end = coalesce(PER2_end.x, PER2_end.y),
+#          Dry.SPAD_end = coalesce(Dry.SPAD_end.x, Dry.SPAD_end.y)) %>% 
+#   select(!matches("\\.x$|\\.y$"))
+# 
+# # print to check
+# write.csv(compiled_w_ls_spad, "F3_alle_vill_compiled_traits.csv", row.names = FALSE)
 ```
-
 
 #### Traits
 ```{r}
@@ -130,6 +215,22 @@ compiled <- compiled %>%
 # calculate Leaf Dry Matter Content (LDMC)
 compiled <- compiled %>% 
   mutate(ldmc = dry.g/wet.g)
+
+# calculate average thickness
+compiled <- compiled %>%
+  mutate(ave_thick = rowMeans(select(.,thick.1, thick.2, thick.3)))
+
+# calculate average toughness
+compiled <- compiled %>%
+  mutate(ave_tough = rowMeans(select(.,tough.1, tough.2, tough.3)))
+
+# calculate N reabsorption
+compiled <- compiled %>% 
+  mutate(N_reabsorp = (1 - (N_wght_p_DEAD/N_wght_p_GREEN)) * 100)
+
+# calculate chlorophyll reabsorption
+compiled <- compiled %>% 
+  mutate(chloro_reabsorp = (1 - (Dry.SPAD_end/Grn.SPAD_start)) * 100)
 
 # separate into alle, vill, and F3
 # ALLE
@@ -188,7 +289,7 @@ dormancy <- ggplot(compiled, aes(x=type, y=days_to_radicle, fill=type)) +
   geom_violin() +
   stat_summary(fun.data = mean_cl_normal, geom = "pointrange", size = .3, show.legend = FALSE) +
   scale_fill_manual(values = c("VILL" = "#FFD700", "ALLE" = "#cc79a7", "F3" = "#56B4E9"),
-                    labels = c(expression(italic("C. villosissimus")), expression(italic("C. allenii")), expression(italic("F3")))) +
+                    labels = c(expression(italic("C. allenii")), expression(italic("F3")), expression(italic("C. villosissimus")))) +
   theme(legend.text.align = 0) +
   labs(x = NULL, y = "seed dormancy", fill = NULL)
 
@@ -256,6 +357,7 @@ summary(more)
 
 # Summary plot without promlematic cohorts:
 GR_subset <- compiled %>% filter(!(GR.M2.date %in% c("8/22/22", "11/21/22", "11/28/22")))
+# CONSIDER - removing 11/14 especially, and maybe 11/7 too - low vill values 
 
 GR_subset_AV <- GR_subset %>% filter(type != "F3")
 t.test(GR_subset_AV$GR_cm.dy ~ GR_subset_AV$type, paired = F) # difference becomes more pronounced without weird cohorts -> p-value = 6.361e-11
@@ -263,7 +365,7 @@ growth_rate_subset <- ggplot(GR_subset, aes(x=type, y=GR_cm.dy, fill=type)) +
   geom_violin() +
   stat_summary(fun.data = mean_cl_normal, geom = "pointrange", size = .3, show.legend = FALSE) +
   scale_fill_manual(values = c("VILL" = "#FFD700", "ALLE" = "#cc79a7", "F3" = "#56B4E9"),
-                    labels = c(expression(italic("C. villosissimus")), expression(italic("C. allenii")), expression(italic("F3")))) +
+                    labels = c(expression(italic("C. allenii")), expression(italic("F3")), expression(italic("C. villosissimus")))) +
   theme(legend.text.align = 0) +
   labs(x = NULL, y = "growth rate", fill = NULL)
 
@@ -354,30 +456,121 @@ summary(more)
 ### area measurements are definitely the issue. 
 ```
 
-##### TEMP Senescence
-Need to update once we have full dataset from Jenn - add to compiled datasheet/filter based on plants with seq data
+##### Thickness
 ```{r}
-### Inspect data:
-# Import data
-sen <- read.csv("clean_wide_C_N.csv", header = T)
-
-# calculate N reabsorption
-sen <- sen %>% 
-  mutate(N_reabsorp = (1 - (N_wght_p_DEAD/N_wght_p_GREEN)) * 100)
-
 # getting un-transformed averages
-aggregate(sen$N_reabsorp, list(sen$species), FUN = function(x) mean(x, na.rm = TRUE)) 
-#    ALLE 26.32518
-#      F3 32.09764
-#    VILL 62.93173
+aggregate(compiled$ave_thick, list(compiled$type), FUN = function(x) mean(x, na.rm = TRUE))
+#    ALLE 0.5282063
+#      F3 0.4832129
+#    VILL 0.4204000
+
+# deparate data distributions 
+hist(ALLE_compiled$ave_thick, breaks =20)
+hist(VILL_compiled$ave_thick, breaks =20)
+hist(F3_compiled$ave_thick, breaks =20)
+
+# plot distributions together
+thickness <- ggplot(compiled, aes(x=type, y=ave_thick , fill=type)) +
+  geom_violin() +
+  stat_summary(fun.data = mean_cl_normal, geom = "pointrange", size = .3, show.legend = FALSE) +
+  scale_fill_manual(values = c("VILL" = "#FFD700", "ALLE" = "#cc79a7", "F3" = "#56B4E9"),
+                    labels = c(expression(italic("C. allenii")), expression(italic("F3")), expression(italic("C. villosissimus")))) +
+  theme(legend.text.align = 0) +
+  labs(x = NULL, y = "thickness", fill = NULL)
+```
+
+##### Toughness
+```{r}
+# getting un-transformed averages
+aggregate(compiled$ave_tough, list(compiled$type), FUN = function(x) mean(x, na.rm = TRUE))
+#    ALLE 115.7063
+#      F3 107.3429
+#    VILL  31.3600
+
+# deparate data distributions 
+hist(ALLE_compiled$ave_tough, breaks =20)
+hist(VILL_compiled$ave_tough, breaks =20)
+hist(F3_compiled$ave_tough, breaks =20)
+
+# plot distributions together
+toughness <- ggplot(compiled, aes(x=type, y=ave_tough , fill=type)) +
+  geom_violin() +
+  stat_summary(fun.data = mean_cl_normal, geom = "pointrange", size = .3, show.legend = FALSE) +
+  scale_fill_manual(values = c("VILL" = "#FFD700", "ALLE" = "#cc79a7", "F3" = "#56B4E9"),
+                    labels = c(expression(italic("C. allenii")), expression(italic("F3")), expression(italic("C. villosissimus")))) +
+  theme(legend.text.align = 0) +
+  labs(x = NULL, y = "toughness", fill = NULL)
+```
+
+##### Senescence
+To quantify senescence, we measured both leaf chlorophyll and nitrogen content before and after drought-induced leaf death. Mapping population hybrids grew for eight weeks in 1-gallon pots before we began the drought treatment. On the first day of no water, we recorded the average of three SPAD readings of chlorophyll content taken near the tip, middle, and base of the oldest healthy leaf blade. From the same leaf, we also collected six hole punches of leaf tissue from the same location as the SPAD readings, but on both sides of the leaf. We repeated the chlorophyll content measures and leaf hole punches when the leaf and the younger leaf above it were both fully dry and dead in appearance. We dried all leaf tissue immediately after collection at  60°C for 72 hours, then stored and shipped them in silica. Leaf nitrogen concentration was determined with an elemental analyzer at Chapman University and at the UC Davis Stable Isotope facility. We quantified chlorophyll and nitrogen reabsorption as:
+1- (dead leaf content/green leaf content) x 100 = % leaf nitrogen or chlorophyll reabsorption. 
+
+###### Leaf N reabsorption
+```{r}
+# getting un-transformed averages
+aggregate(compiled$N_reabsorp, list(compiled$type), FUN = function(x) mean(x, na.rm = TRUE)) 
+#    ALLE 35.71953
+#      F3 35.66648
+#    VILL 69.20421
+
+# Values without latest batch from Davis:
+#   ALLE 31.40997 
+#     F3 35.92828 
+#   VILL 68.57828 
+
+# check out data distribution
+hist(ALLE_compiled$N_reabsorp, breaks =20)
+hist(VILL_compiled$N_reabsorp, breaks =20)
+hist(F3_compiled$N_reabsorp, breaks =20)
 
 ### Plot together
-N_reabsorption <- ggplot(sen, aes(x=species, y=N_reabsorp , fill=species)) +
+N_reabsorption <- ggplot(compiled, aes(x=type, y=N_reabsorp , fill=type)) +
   geom_violin() +
-  geom_boxplot(width = 0.2, fill = "white", outlier.shape = NA) + 
-  scale_fill_manual(values = c("VILL" = "#FFD700", "ALLE" = "#cc79a7", "F3" = "#56B4E9"))
-                    #,labels = c(expression(italic("C. villosissimus")), expression(italic("C. allenii")), expression(italic("F3"))))
+  stat_summary(fun.data = mean_cl_normal, geom = "pointrange", size = .3, show.legend = FALSE) +
+  scale_fill_manual(values = c("VILL" = "#FFD700", "ALLE" = "#cc79a7", "F3" = "#56B4E9"),
+                    labels = c(expression(italic("C. allenii")), expression(italic("F3")), expression(italic("C. villosissimus")))) +
+  theme(legend.text.align = 0) +
+  labs(x = NULL, y = "%N reasorbed", fill = NULL)
 
 # save plot
-ggsave("trait_plots/N_reabsorption.pdf", N_reabsorption , device = "pdf", units = "mm", width = 140, height = 100)
+ggsave("trait_plots/N_reabsorption.pdf", N_reabsorption , device = "pdf", units = "mm", width = 130, height = 110)
 ```
+
+###### Chlorophyll reabsorption
+```{r}
+# getting un-transformed averages
+aggregate(compiled$chloro_reabsorp, list(compiled$type), FUN = function(x) mean(x, na.rm = TRUE))
+#    ALLE 37.26016
+#      F3 60.40523
+#    VILL 91.91851
+
+# deparate data distributions 
+hist(ALLE_compiled$chloro_reabsorp, breaks =20)
+hist(VILL_compiled$chloro_reabsorp, breaks =20)
+hist(F3_compiled$chloro_reabsorp, breaks =20)
+
+# plot distributions together
+chloro_reabsorption <- ggplot(compiled, aes(x=type, y=chloro_reabsorp , fill=type)) +
+  geom_violin() +
+  stat_summary(fun.data = mean_cl_normal, geom = "pointrange", size = .3, show.legend = FALSE) +
+  scale_fill_manual(values = c("VILL" = "#FFD700", "ALLE" = "#cc79a7", "F3" = "#56B4E9"),
+                    labels = c(expression(italic("C. allenii")), expression(italic("F3")), expression(italic("C. villosissimus")))) +
+  theme(legend.text.align = 0) +
+  labs(x = NULL, y = "chlorophyll reabsorbed", fill = NULL)
+
+# save plot
+# ggsave("trait_plots/chloro_reabsorption.pdf", chloro_reabsorption, device = "pdf", units = "mm", width = 130, height = 110)
+```
+
+#### Trait panel plot
+```{r}
+# assemble trait plots into a panel
+trait_panel <- dormancy + growth_rate_subset + LDMC + thickness + toughness +
+  N_reabsorption + chloro_reabsorption + guide_area() +
+  plot_layout(ncol = 4) +
+  plot_layout(guides = 'collect')
+
+ggsave("trait_plots/trait_panel.pdf", trait_panel, device = "pdf", units = "mm", width = 180, height = 100)
+```
+
