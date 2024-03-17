@@ -26,6 +26,8 @@ editor_options:
 ---
 
 ## QTL building for *C. allenii* x *C. villosissimus*
+
+##### Load all packages:
 ```{r}
 # loading packages etc
 library(dplyr)
@@ -42,60 +44,6 @@ library("glmmTMB")
 
 ### Local ancestry
 We conducted local ancestry assignment with aHMM from AncestryInfer (Schumer et al. 2020?). 
-
-```{r}
-library(cowplot)
-
-# # test plots - Mapping population F2s and F3s run without masking bad sites, but with higher error rate (0.02)
-# directory <- "./test_mapping_pop_chr1/"
-# chromosome <- "chr1"
-# 
-# files <- list.files(directory, pattern = "*posterior")
-# IDs <- substr(files, 1, 9)
-# 
-# plot_list = list()
-# for (i in 1:length(files)) {
-#   post <- read_tsv(paste0(directory, files[i]))
-#   # rename cols 
-#   names(post) <- c("chrom", "position", "ref_homo", "het", "alt_homo")
-#   # Filter out posteriors with a 0.9 threshold and create allele frequency cols for plotting
-#   post <- post %>% 
-#     filter(ref_homo > 0.9 | alt_homo > 0.9 | het > 0.9) %>% 
-#     mutate (ancestry = ref_homo+het*0.5)
-#   p <- ggplot(post, aes(position, ancestry)) + 
-#     ggtitle(paste(IDs[i], chromosome)) +
-#     geom_point() +
-#     ylim(-0.01,1.01)
-#   plot_list[[i]] = p
-# }  
-# 
-# 
-# # PICKUP - what I want to try above - change the p to be an iterative object so it just saves plots to different object names rather than to a list, or figure out how to get the fucking list to work... 
-# 
-# # for (i in 1:length(files)) {
-# # paste([i], chromosome)
-# # } 
-# 
-# test <- plot_list[[1]] + plot_list[[2]] + plot_list[[3]] + plot_list[[4]] + 
-#           plot_list[[5]] + plot_list[[6]] + plot_list[[7]] + plot_list[[8]] +
-#           plot_list[[9]] + plot_list[[10]] + plot_list[[11]] + plot_list[[12]] +
-#           plot_list[[13]] + plot_list[[14]] + plot_list[[15]]
-# 
-# pdf("chr1.plots.pdf", height = 50)
-# plot_grid(plot_list[[1]], plot_list[[2]], plot_list[[3]], plot_list[[4]], 
-#           plot_list[[5]], plot_list[[6]], plot_list[[7]], plot_list[[8]],
-#           plot_list[[9]], plot_list[[10]], plot_list[[11]], plot_list[[12]],
-#           plot_list[[13]], plot_list[[14]], plot_list[[15]],
-#           nrow = 8,
-#           ncol = 2)
-# dev.off()
-
-
-# VB_21_298_all_chrs <- chr1_21_298 + chr2_21_298 + chr3_21_298 + chr4_21_298 + chr5_21_298 + chr6_21_298 + chr7_21_298 + chr8_21_298 + chr9_21_298 + plot_layout(ncol = 3)
-#  
-# ggsave("aHMM/H_19.539_all_chrs_low_error_aHMM_plot.pdf", H_19.539_all_chrs, units = "mm", width = 500, height = 375)
-
-```
 
 ### LEP-MAP3 input file generation
 See "generate_lepmap_input_files.R"
@@ -232,18 +180,70 @@ compiled <- compiled %>%
 compiled <- compiled %>% 
   mutate(chloro_reabsorp = (1 - (Dry.SPAD_end/Grn.SPAD_start)) * 100)
 
-# separate into alle, vill, and F3
-# ALLE
-ALLE_compiled <- compiled %>% 
-  filter(type == "ALLE")
+# # separate into alle, vill, and F3
+# # ALLE
+# ALLE_compiled <- compiled %>% 
+#   filter(type == "ALLE")
+# 
+# # VILL
+# VILL_compiled <- compiled %>% 
+#   filter(type == "VILL")
+# 
+# # F3
+# F3_compiled <- compiled %>% 
+#   filter(type == "F3")
 
-# VILL
-VILL_compiled <- compiled %>% 
-  filter(type == "VILL")
+# make a simplified df of the F3 phenotypes to map in r/qtl
+# convert cohort date into cohort number - easier format
+for_r.qtl_F3phe <- compiled %>% 
+  mutate(cohort = as.integer(factor(GR.M2.date))) %>% 
+  filter(type == "F3") %>% 
+  select("ID","parent", "cohort","days_to_radicle","GR_cm.dy","ldmc","ave_thick","ave_tough","N_reabsorp","chloro_reabsorp")
 
-# F3
-F3_compiled <- compiled %>% 
-  filter(type == "F3")
+colnames(for_r.qtl_F3phe)[1] <- "FID"
+  
+FID_to_LID <- read.table("FieldID_to_LabID.txt", header = T)
+hindex <- read.csv("hyb_index.csv", header = T)
+family <- read.csv("parent_translate.csv", header = T)
+
+for_r.qtl_F3phe <- left_join(for_r.qtl_F3phe, FID_to_LID)
+for_r.qtl_F3phe <- left_join(for_r.qtl_F3phe, hindex)
+for_r.qtl_F3phe <- left_join(for_r.qtl_F3phe, family, by ="parent")
+
+# filter out individuals with no sequence data
+miss_geno <- c("165_009B_117", "165_25_11")
+for_r.qtl_F3phe <- for_r.qtl_F3phe %>% 
+  filter(!FID %in% miss_geno, !family =="NA") %>% 
+  select("LID","family", "hybrid_index","cohort","days_to_radicle","GR_cm.dy","ldmc","ave_thick","ave_tough","N_reabsorp","chloro_reabsorp") 
+colnames(for_r.qtl_F3phe)[1] <- "ID"
+
+# "onehot" encode factor covariates to include them in rqtl
+# add "onehot" cols for family
+for_r.qtl_F3phe_onehotcovar <- for_r.qtl_F3phe %>% 
+  mutate(F21_238 = case_when(family == "21_238" ~ 1,
+                             TRUE ~ 0),
+         F21_259 = case_when(family == "21_259" ~ 1,
+                             TRUE ~ 0),
+         F21_241 = case_when(family == "21_241" ~ 1,
+                             TRUE ~ 0),
+         F21_284 = case_when(family == "21_284" ~ 1,
+                             TRUE ~ 0),
+         F21_232 = case_when(family == "21_232" ~ 1,
+                             TRUE ~ 0))
+
+# add "onehot" cols for cohort
+for (i in unique(for_r.qtl_F3phe_onehotcovar$cohort)) {
+  cohort_col_name <- paste0("coh", i)
+ for_r.qtl_F3phe_onehotcovar <- for_r.qtl_F3phe_onehotcovar %>% 
+  mutate(!!sym(cohort_col_name) := case_when(cohort == paste0(i) ~ 1,
+                             TRUE ~ 0)) 
+}
+
+# rearrange the cols
+for_r.qtl_F3phe_onehotcovar <- for_r.qtl_F3phe_onehotcovar %>% 
+  select("ID","family","hybrid_index","cohort","F21_238","F21_259","F21_241","F21_284","F21_232","coh27","coh24","coh19","coh25","coh26","coh1","coh28","coh31","coh21","coh29","coh30","coh34","coh7","coh8","coh22","coh32","coh33","coh5","coh9","coh6","coh10","coh12","coh15","coh14","coh11","coh13","coh16","coh17","coh20","coh18","coh23","days_to_radicle","GR_cm.dy","ldmc","ave_thick","ave_tough","N_reabsorp","chloro_reabsorp")
+  
+write.table(for_r.qtl_F3phe_onehotcovar, "F3phe_onehotcovar.csv", quote = F, row.names = F, sep = ",")
 ```
 
 We selected traits involved in divergent habitat adaptation for genetic mapping.
@@ -566,7 +566,7 @@ chloro_reabsorption <- ggplot(compiled, aes(x=type, y=chloro_reabsorp , fill=typ
 #### Trait panel plot
 ```{r}
 # assemble trait plots into a panel
-trait_panel <- dormancy + growth_rate_subset + LDMC + thickness + toughness +
+trait_panel <- dormancy + growth_rate_subset + thickness + toughness +
   N_reabsorption + chloro_reabsorption + guide_area() +
   plot_layout(ncol = 4) +
   plot_layout(guides = 'collect')
