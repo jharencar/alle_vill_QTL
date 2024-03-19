@@ -95,34 +95,33 @@ Costus <- read.cross("csvs", ".", genfile = "F3gen.csv", phefile = "F3phe_onehot
 
 ## Omit individuals and markers with lots of missing data
 # summary(Costus)
-
 # F2 intercross
 # 
 # No. individuals:    391 
 # 
-# No. phenotypes:     8 
-# Percent phenotyped: 100 98.2 96.7 87.2 88.5 88.5 88.7 97.2 
+# No. phenotypes:     47 
+# Percent phenotyped: 97.9 
 # 
 # No. chromosomes:    9 
 # Autosomes:      1 2 3 4 5 6 7 8 9 
 # 
-# Total markers:      16281 
-# No. markers:        2195 2381 1766 1588 2080 1702 1419 1564 1586 
-# Percent genotyped:  98.3 
-# Genotypes (%):      AA:25.4  AB:26.7  BB:47.9  not BB:0.0  not AA:0.0 
+# Total markers:      14509 
+# No. markers:        1974 2124 1564 1393 1879 1492 1267 1412 1404 
+# Percent genotyped:  98.4 
+# Genotypes (%):      AA:25.8  AB:27.0  BB:47.2  not BB:0.0  not AA:0.0 
 
 ## look at the pattern of missing data (can take a few minutes to load)
 #plotMissing(Costus)
 
-## Plot of number of genotyped markers for each individual (left panel) and 
-## number of genotyped individuals for each marker (right panel).
-# par(mfrow=c(1,2), las=1)
-# plot(ntyped(Costus), ylab="No. typed markers", main="No. genotypes by individual") 
-# plot(ntyped(Costus, "mar"), ylab="No. typed individuals", main="No. genotypes by marker")
+# Plot of number of genotyped markers for each individual (left panel) and
+# number of genotyped individuals for each marker (right panel).
+par(mfrow=c(1,2), las=1)
+plot(ntyped(Costus), ylab="No. typed markers", main="No. genotypes by individual")
+plot(ntyped(Costus, "mar"), ylab="No. typed individuals", main="No. genotypes by marker")
 
-## Omit the individuals with lots of missing genotype data
-Costus <- subset(Costus, ind=(ntyped(Costus)>15000))
-# brings total individuals 391 --> 387
+## Omit individuals with less than 80% of markers (14509*.80 = 11607)
+Costus <- subset(Costus, ind=(ntyped(Costus)>11607))
+# none removed
 
 ## identify names of markers to drop, based on genotypes-per-marker plot
 # drop all markers with less than ~80% genotyped individuals (391*0.8 = 313)
@@ -131,7 +130,7 @@ todrop <- names(nt.bymar[nt.bymar < 313])
 ## drop those markers
 Costus <- drop.markers(Costus, todrop)
 
-# summary(Costus) # brings total markers 16281 --> 16201, % genotyped from 98.3 --> 98.8%
+# summary(Costus) # brings total markers 14509 --> 14416 , % genotyped from 98.4 --> 98.6%
 
 ## Identify duplicate individuals
 # cg <- comparegeno(Costus)
@@ -270,13 +269,13 @@ saveRDS(Costus_prob,file="first_hi.cohort.fam.hotones_covars_AVmap-prob-prob.rds
 ###### SELECT A MODEL ######
 
 # ## determine the appropriate model to use/covariates to include
-# days_to_radicle <- as.numeric(pull.pheno(Costus_prob, "days_to_radicle"))
+days_to_radicle <- as.numeric(pull.pheno(Costus_prob, "days_to_radicle"))
 GR_cm.dy <- as.numeric(pull.pheno(Costus_prob, "GR_cm.dy"))
 # ldmc <- as.numeric(pull.pheno(Costus_prob, "ldmc"))
-# ave_thick <- as.numeric(pull.pheno(Costus_prob, "ave_thick"))
-# ave_tough <- as.numeric(pull.pheno(Costus_prob, "ave_tough"))
-# N_reabsorp <- as.numeric(pull.pheno(Costus_prob, "N_reabsorp"))
-# chloro_reabsorp <- as.numeric(pull.pheno(Costus_prob, "chloro_reabsorp"))
+ave_thick <- as.numeric(pull.pheno(Costus_prob, "ave_thick"))
+ave_tough <- as.numeric(pull.pheno(Costus_prob, "ave_tough"))
+N_reabsorp <- as.numeric(pull.pheno(Costus_prob, "N_reabsorp"))
+chloro_reabsorp <- as.numeric(pull.pheno(Costus_prob, "chloro_reabsorp"))
 # 
 # # potential covariates, per sample; JULIA NEEDS TO calculate and include % heterozygous genotypes
 hi <- as.numeric(pull.pheno(Costus_prob, "hybrid_index"))    # C.allenii ancestry proportion
@@ -285,9 +284,36 @@ cohort <- as.factor(pull.pheno(Costus_prob, "cohort"))           # growth cohort
 fam <- as.factor(pull.pheno(Costus_prob, "family"))           #  F2 parent (RERUN after adding to phenos) 
 
 ## select a model by calculating AIC stepwise
-#   site.tank is the only recovered covariate
+model_all<-lm(days_to_radicle~hi+cohort+fam)
+selectedMod <- step(model_all)
+summary(selectedMod)
+# keep all (didn't include hi but I will anyway)
+
 model_all<-lm(GR_cm.dy~hi+cohort+fam)
 selectedMod <- step(model_all)
+summary(selectedMod)
+# keep all (didn't include hi but I will anyway)
+
+model_all<-lm(ave_thick~hi+cohort+fam)
+selectedMod <- step(model_all)
+summary(selectedMod)
+# keep all (didn't include hi but I will anyway)
+
+model_all<-lm(ave_tough~hi+cohort+fam)
+selectedMod <- step(model_all)
+summary(selectedMod)
+# keep all (didn't include hi but I will anyway)
+
+model_all<-lm(N_reabsorp~hi+cohort+fam)
+selectedMod <- step(model_all)
+summary(selectedMod)
+# keep all (didn't include hi but I will anyway)
+
+model_all<-lm(chloro_reabsorp~hi+cohort+fam)
+selectedMod <- step(model_all)
+summary(selectedMod)
+# keep all (didn't include hi but I will anyway)
+
 
 # pull covariates 
 #covariates <- pull.pheno(Costus_prob, c("hybrid_index","F21_238","F21_259","F21_241","F21_284","F21_232","coh27","coh24","coh19","coh25","coh26","coh1","coh28","coh31","coh21","coh29","coh30","coh34","coh7","coh8","coh22","coh32","coh33","coh5","coh9","coh6","coh10","coh12","coh15","coh14","coh11","coh13","coh16","coh17","coh20","coh18","coh23")) # ADD fam
@@ -333,694 +359,403 @@ F21_241 <- as.factor(pull.pheno(Costus_prob, "F21_241"))
 F21_284 <- as.factor(pull.pheno(Costus_prob, "F21_284"))
 F21_232 <- as.factor(pull.pheno(Costus_prob, "F21_232"))
 
-## select a model with cohorts by calculating AIC stepwise
-# 1st scan
-
+## select models for each phenotype by calculating AIC stepwise
+### dormancy - not including cohort bc tightly correlated with dormancy (later cohorts = more dormancy)
+model_all<-lm(days_to_radicle~hi+F21_238+F21_259+F21_241+F21_284+F21_232)
+selectedMod <- step(model_all)
+summary(selectedMod)
+# pull selected covariates (plus hybrid_index)
+#  formula = days_to_radicle ~ F21_259 + F21_241
+# makes sense all families are retained here! Maternal effects huge in seeds
+covariates_SD_select <- pull.pheno(Costus_prob, c("hybrid_index","F21_259","F21_241"))
+                                                 
+### growth rate
 model_all<-lm(GR_cm.dy~hi+coh5+coh6+coh7+coh8+coh9+coh10+coh11+coh12+coh13+coh14+coh15+coh16+coh17+coh18+coh19+coh20+coh21+coh22+coh23+coh24+coh25+coh26+coh27+coh28+coh29+coh30+coh31+coh32+coh33+coh34+F21_238+F21_259+F21_241+F21_284+F21_232)
 selectedMod <- step(model_all)
-summary(model_all)
-
+summary(selectedMod)
 # pull selected covariates (plus hybrid_index)
-#  formula = GR_cm.dy ~ coh5 + coh6 + coh7 + coh8 + coh9 + coh10 + 
-#coh11 + coh12 + coh13 + coh14 + coh15 + coh16 + coh18 + coh19 + 
-#  coh20 + coh21 + coh22 + coh23 + coh26 + coh27 + coh29 + coh30 + 
-#  coh31 + F21_259
-covariates_GRselect <- pull.pheno(Costus_prob, c("hybrid_index", "coh5","coh6","coh7","coh8","coh9","coh10","coh11","coh12","coh13","coh14","coh15","coh16","coh18","coh19","coh20","coh21","coh22","coh23","coh26","coh27","coh29","coh30","coh31","F21_259"))
+# formula = GR_cm.dy ~ coh5 + coh6 + coh7 + coh8 + coh9 + coh10 + 
+#   coh11 + coh12 + coh13 + coh14 + coh15 + coh16 + coh18 + coh19 + 
+#   coh20 + coh21 + coh22 + coh23 + coh26 + coh27 + coh29 + coh30 + 
+#   coh31 + F21_259
+covariates_GR_select <- pull.pheno(Costus_prob, c("hybrid_index", "coh5","coh6","coh7","coh8","coh9","coh10","coh11","coh12","coh13","coh14","coh15","coh16","coh18","coh19","coh20","coh21","coh22","coh23","coh26","coh27","coh29","coh30","coh31","F21_259"))
+
+### thickness (missing cohorts: coh7+coh34+coh1+coh8+coh33)
+model_all<-lm(ave_thick~hi+coh1+coh5+coh6+coh9+coh10+coh11+coh12+coh13+coh14+coh15+coh16+coh17+coh18+coh19+coh20+coh21+coh22+coh23+coh24+coh25+coh26+coh27+coh28+coh29+coh30+coh31+coh32+F21_238+F21_259+F21_241+F21_284+F21_232)
+selectedMod <- step(model_all)
+summary(selectedMod)
+# pull selected covariates (plus hybrid_index)
+# formula = ave_thick ~ coh1 + coh5 + coh9 + coh10 + coh11 + 
+#   coh12 + coh13 + coh14 + coh15 + coh16 + coh17 + coh18 + coh19 + 
+#   coh20 + coh21 + coh22 + coh23 + coh24 + coh25 + coh26 + coh30 + 
+#   F21_238 + F21_284
+covariates_thick_select <- pull.pheno(Costus_prob, c("hybrid_index","coh1","coh5","coh9","coh10","coh11","coh12","coh13","coh14","coh15","coh16","coh17","coh18","coh19","coh20","coh21","coh22","coh23","coh24","coh25","coh26","coh30","F21_238","F21_284"))
+
+# toughness (missing cohorts: coh7+coh34+coh1+coh8+coh33)
+model_all<-lm(ave_tough~hi+coh1+coh5+coh6+coh9+coh10+coh11+coh12+coh13+coh14+coh15+coh16+coh17+coh18+coh19+coh20+coh21+coh22+coh23+coh24+coh25+coh26+coh27+coh28+coh29+coh30+coh31+coh32+F21_238+F21_259+F21_241+F21_284+F21_232)
+selectedMod <- step(model_all)
+summary(selectedMod)
+# pull selected covariates (plus hybrid_index)
+# formula = ave_tough ~ coh5 + coh6 + coh9 + coh10 + coh11 + 
+#   coh13 + coh16 + coh18 + coh21 + coh23 + coh26 + coh31 + F21_238 + 
+#   F21_259 + F21_284
+covariates_tough_select <- pull.pheno(Costus_prob, c("hybrid_index","coh1","coh5","coh6","coh9","coh10","coh11","coh12","coh13","coh14","coh15","coh16","coh17","coh18","coh19","coh20","coh21","coh22","coh23","coh24","coh25","coh26","coh27","coh28","coh29","coh30","coh31","coh32","F21_238","F21_259","F21_241","F21_284","F21_232"))
+
+# Percent N reabsorbed during drought
+model_all<-lm(N_reabsorp~hi+coh1+coh5+coh6+coh7+coh8+coh9+coh10+coh11+coh12+coh13+coh14+coh15+coh16+coh17+coh18+coh19+coh20+coh21+coh22+coh23+coh24+coh25+coh26+coh27+coh28+coh29+coh30+coh31+coh32+coh33+coh34+F21_238+F21_259+F21_241+F21_284+F21_232)
+selectedMod <- step(model_all)
+summary(selectedMod)
+# pull selected covariates (plus hybrid_index)
+# formula = N_reabsorp ~ coh1 + coh5 + coh7 + coh8 + coh9 + 
+#     coh10 + coh11 + coh12 + coh13 + coh14 + coh15 + coh16 + coh17 + 
+#     coh18 + coh19 + coh20 + coh21 + coh22 + coh23 + coh24 + coh25 +  
+#     coh26 + coh27 + coh28 + coh29 + coh30 + coh31 + coh32 + coh33 +  
+#     F21_238 + F21_259 + F21_241 + F21_284
+covariates_Nreabs_select <- pull.pheno(Costus_prob, c("hybrid_index", "coh1","coh5","coh7","coh8","coh9","coh10","coh11","coh12","coh13","coh14","coh15","coh16","coh17","coh18","coh19","coh20","coh21","coh22","coh23","coh24","coh25","coh26","coh27","coh28","coh29","coh30","coh31","coh32","coh33","F21_238","F21_259","F21_241","F21_284"))
+
+# Percent chlorophyll reabsorbed during drought
+model_all<-lm(chloro_reabsorp~hi+coh1+coh5+coh6+coh7+coh8+coh9+coh10+coh11+coh12+coh13+coh14+coh15+coh16+coh17+coh18+coh19+coh20+coh21+coh22+coh23+coh24+coh25+coh26+coh27+coh28+coh29+coh30+coh31+coh32+coh33+coh34+F21_238+F21_259+F21_241+F21_284+F21_232)
+selectedMod <- step(model_all)
+summary(selectedMod)
+# pull selected covariates (plus hybrid_index)
+# formula = chloro_reabsorp ~ coh5 + coh12 + coh13 + coh14 + 
+#   coh15 + coh16 + coh19 + coh20 + coh21 + coh22 + coh24 + coh25 + 
+#   coh27 + coh28 + coh30 + coh31 + coh32 + F21_259 + F21_241
+covariates_Chlreabs_select <- pull.pheno(Costus_prob, c("hybrid_index","coh5","coh12","coh13","coh14","coh15","coh16","coh19","coh20","coh21","coh22","coh24","coh25","coh27","coh28","coh30","coh31","coh32","F21_259","F21_241"))
 
 ###### KK code - 2-dimensional scan #####
-
 ## CANT run scantwo locally, could try on humm but for now just do scanone - Error: vector memory exhausted (limit reached?)
 #scantwo: Two-dimensional genome scan with a two-QTL model
 #scantwo to do permutations for likelihood penalties
-scn2_1kperm.hk <- scantwo(Costus_prob, method = "hk", pheno.col = 41:47, addcovar = covariates_GRselect,  n.perm=1000, verbose = TRUE)
+scn2_1kperm.hk <- scantwo(Costus_prob, method = "hk", pheno.col = "GR_cm.dy", addcovar = covariates_GRselect,  n.perm=1000, verbose = TRUE)
 plot(scn2_1kperm.hk)
 
-###### RUN SINGLE-QTL SCAN ######
-#remove cohort ocovar to look at dormancy bc assoc with hybrid index which is already included. - cohorts really fuck things up...
-#PICKUP!!! Eventually - do model selection like Cheyenne for each pheno to see if same cohorts pop up/to include only those that come up across phenos (all from each pheno)
-#covariates <- pull.pheno(Costus_prob, c("hybrid_index","F21_238","F21_259","F21_241","F21_284","F21_232")) # ADD fam
+###### RUN SINGLE-QTL SCANS ######
+#remove cohort covar to look at dormancy bc likely assoc with hybrid index (more vill acestry, slower germ, different cohort) which is already included. 
+#- cohorts really fuck things up for germination, I think this is becasue it is overfitting the model since cohort is explaining the same variability as the germination value itself. 
+# PICKUP - what I think I should do is give seed germination its own whole set of cohorts based on the batch of seeds (the b,c, d, e)
+#covariates <- pull.pheno(Costus_prob, c("hybrid_index","F21_238","F21_259","F21_241","F21_284","F21_232"))
 
-## perform a single-qtl scan 
-scanone.hk <- scanone(Costus_prob, method="hk", pheno.col = 41:47, addcovar=covariates_GRselect)
-plot(scanone.hk,lodcolumn=1, ylab="LOD score - seed dormancy")
-plot(scanone.hk,lodcolumn=2, ylab="LOD score - growth rate")
-plot(scanone.hk,lodcolumn=3, ylab="LOD score - ldmc")
-plot(scanone.hk,lodcolumn=4, ylab="LOD score - thickness")
-plot(scanone.hk,lodcolumn=5, ylab="LOD score - toughness")
-plot(scanone.hk,lodcolumn=6, ylab="LOD score - %N reabsorbed in drought")
-plot(scanone.hk,lodcolumn=7, ylab="LOD score - %chlorophyll reabsorbed in drought")
-summary(scanone.hk)
-write.table(scanone.hk,file="scanone-hk_hotone_covar_based.on.GR.tsv",sep="\t",quote=FALSE)
-#write.table(scanone.hk,file="ltreb-only-CTmax_22-1hot-site-tanks.scanone-hk_second-scan-w-qtl-covariate.tsv",sep="\t",quote=FALSE)
-saveRDS(scanone.hk, file="scanone-hk_hotone_covar_based.on.GR.rds")
+### Seed dormancy
+seed.dormancy.scanone.hk <- scanone(Costus_prob, method="hk", pheno.col = "days_to_radicle", addcovar=covariates_SD_select)
+plot(seed.dormancy.scanone.hk,lodcolumn=1, ylab="LOD score - seed dormancy")
+summary(seed.dormancy.scanone.hk)
+write.table(seed.dormancy.scanone.hk,file="seed.dormancy.scanone-hk_hotone_covar.tsv",sep="\t",quote=FALSE)
+saveRDS(seed.dormancy.scanone.hk, file="seed.dormancy.scanone-hk_hotone_covar.rds")
+seed.dormancy.perm.hk <- scanone(Costus_prob, method="hk", pheno.col ="days_to_radicle", n.perm=1000, addcovar=covariates_SD_select)
+saveRDS(seed.dormancy.perm.hk, "seed.dormancy.scanone-hk_hotone_covar_1kperm.rds")
+plot(seed.dormancy.perm.hk,lodcolumn=1)
+summary(seed.dormancy.scanone.hk, perms=seed.dormancy.perm.hk, alpha=0.1, pvalues=TRUE)
+# lod cutoffs
+summary(seed.dormancy.perm.hk,alpha=c(0.05, 0.1, 0.2))
+# LOD thresholds (1000 permutations)
+# lod
+# 5%  4.45
+# 10% 3.82
+# 20% 3.15
+SD_10cutoff_lod = 3.74
+summary(seed.dormancy.scanone.hk[seed.dormancy.scanone.hk$lod > SD_10cutoff_lod,])
+write.table(summary(seed.dormancy.scanone.hk[seed.dormancy.scanone.hk$lod > SD_10cutoff_lod,]), "seed.dormancy_sig.peaks_scanone-hk_hotone_covar_1kperm.txt", quote = F)
 
-## run permutations to define the LOD threshold of significance
-perm.hk <- scanone(Costus_prob, method="hk", pheno.col = 41:47, n.perm=1000) # ADD BACK  addcovar=covariates,
-saveRDS(perm.hk, "scanone-hk_hotone_covar_based.on.GR_1kperm.rds")
-#saveRDS(perm.hk, "LTREB-only-ctmax_perm_site-tank.hk.no-xtreme_1hot-site-tank_perm.hk_second-scan-w-qtl-covariate.rds")
+#plot
+pdf("./QTL_plots/seed.dormancy-qtl.pdf",24,7)
+par(mar = c(5, 5, 4, 2))
+plot(seed.dormancy.scanone.hk,lodcolumn=1, 
+     ylab="LOD score",
+     main = "seed dormancy",
+     cex.lab = 2,
+     cex.main = 2.5)
+abline(h=SD_10cutoff_lod, col="red", lwd=3)
+dev.off()
 
-## get genome-wide LOD thresholds usi genome-scan-adjusted p-values
-# seed dormancy
-summary(perm.hk,lodcolumn=1,alpha=c(0.05, 0.1, 0.2))
-## 
-#lod
-# 5%  4.25
-# 10% 3.57
+### Growth rate
+growth.rate.scanone.hk <- scanone(Costus_prob, method="hk", pheno.col = "GR_cm.dy", addcovar=covariates_GR_select)
+plot(growth.rate.scanone.hk,lodcolumn=1, ylab="LOD score - growth rate")
+summary(growth.rate.scanone.hk)
+write.table(growth.rate.scanone.hk,file="growth.rate.scanone-hk_hotone_covar.tsv",sep="\t",quote=FALSE)
+saveRDS(growth.rate.scanone.hk, file="growth.rate.scanone-hk_hotone_covar.rds")
+growth.rate.perm.hk <- scanone(Costus_prob, method="hk", pheno.col ="GR_cm.dy", n.perm=1000, addcovar=covariates_GR_select)
+saveRDS(growth.rate.perm.hk, "growth.rate.scanone-hk_hotone_covar_1kperm.rds") 
+plot(growth.rate.perm.hk,lodcolumn=1, ylab="LOD score - growth rate")
+summary(growth.rate.scanone.hk, perms=growth.rate.perm.hk, alpha=0.1, pvalues=TRUE)
+# lod cutoffs
+summary(growth.rate.perm.hk,alpha=c(0.05, 0.1, 0.2))
+# LOD thresholds (1000 permutations)
+#      lod
+# 5%  3.91
+# 10% 3.50
 # 20% 3.12
-cutoff_lod = 3.57 # based on 10%
+GR_10cutoff_lod = 3.50
+summary(growth.rate.scanone.hk[growth.rate.scanone.hk$lod > GR_10cutoff_lod,])
+write.table(summary(growth.rate.scanone.hk[growth.rate.scanone.hk$lod > GR_10cutoff_lod,]), "growth.rate_sig.peaks_scanone-hk_hotone_covar_1kperm.txt", quote = F)
 
-## look at highest LOD peak and the corresponding p-value on each chromosome
-summary(scanone.hk, lodcolumn=1, perms=perm.hk, pvalues=TRUE)
+#plot
+pdf("./QTL_plots/growth.rate-qtl.pdf",24,7)
+par(mar = c(5, 5, 4, 2))
+plot(growth.rate.scanone.hk,lodcolumn=1,
+     ylab="LOD score",
+     main = "growth rate",
+     cex.lab = 2,
+     cex.main = 2.5)
+abline(h=GR_10cutoff_lod, col="red", lwd=3)
+dev.off()
 
-## look at peaks that surpass the 10% LOD threshold
-summary(scanone.hk, lodcolumn=1, perms=perm.hk, alpha=0.1, pvalues=TRUE)
-summary(scanone.hk[scanone.hk$lod > cutoff_lod,], lodcolumn=1,)
 
-# growth rate
-summary(perm.hk,lodcolumn=2,alpha=c(0.05, 0.1, 0.2))
-## 
-#lod
-# 5%  4.25
+### Leaf thickness
+thickness.scanone.hk <- scanone(Costus_prob, method="hk", pheno.col = "ave_thick", addcovar=covariates_thick_select)
+plot(thickness.scanone.hk,lodcolumn=1, ylab="LOD score - leaf thickness")
+summary(thickness.scanone.hk)
+write.table(thickness.scanone.hk,file="thickness.scanone-hk_hotone_covar.tsv",sep="\t",quote=FALSE)
+saveRDS(thickness.scanone.hk, file="thickness.scanone-hk_hotone_covar.rds")
+thickness.perm.hk <- scanone(Costus_prob, method="hk", pheno.col ="ave_thick", n.perm=1000, addcovar=covariates_thick_select)
+saveRDS(thickness.perm.hk, "thickness.scanone-hk_hotone_covar_1kperm.rds")
+plot(thickness.perm.hk,lodcolumn=1, ylab="LOD score - leaf thickness")
+summary(thickness.scanone.hk, perms=thickness.perm.hk, alpha=0.1, pvalues=TRUE)
+# lod cutoffs
+summary(thickness.perm.hk,alpha=c(0.05, 0.1, 0.2))
+# LOD thresholds (1000 permutations)
+# lod
+# 5%  3.87
 # 10% 3.57
+# 20% 3.16
+thick_10cutoff_lod = 3.57
+summary(thickness.scanone.hk[thickness.scanone.hk$lod > thick_10cutoff_lod,])
+write.table(summary(thickness.scanone.hk[thickness.scanone.hk$lod > thick_10cutoff_lod,]), "leaf.thickness_sig.peaks_scanone-hk_hotone_covar_1kperm.txt", quote = F)
+
+#plot
+pdf("lf.thickness-qtl.pdf",24,7)
+par(mar = c(5, 5, 4, 2))
+plot(thickness.scanone.hk,lodcolumn=1, 
+     ylab="LOD score",
+     main = "leaf thickness",
+     cex.lab = 2,
+     cex.main = 2.5)
+abline(h=thick_10cutoff_lod, col="red", lwd=3)
+dev.off()
+
+### Leaf toughness
+toughness.scanone.hk <- scanone(Costus_prob, method="hk", pheno.col = "ave_tough", addcovar=covariates_tough_select)
+plot(toughness.scanone.hk,lodcolumn=1, ylab="LOD score - leaf toughness")
+summary(toughness.scanone.hk)
+write.table(toughness.scanone.hk,file="toughness.scanone-hk_hotone_covar.tsv",sep="\t",quote=FALSE)
+saveRDS(toughness.scanone.hk, file="toughness.scanone-hk_hotone_covar.rds")
+toughness.perm.hk <- scanone(Costus_prob, method="hk", pheno.col ="ave_tough", n.perm=1000, addcovar=covariates_tough_select)
+saveRDS(toughness.perm.hk, "toughness.scanone-hk_hotone_covar_1kperm.rds")
+plot(toughness.perm.hk,lodcolumn=1, ylab="LOD score - leaf toughness")
+summary(toughness.scanone.hk, perms=toughness.perm.hk, alpha=0.1, pvalues=TRUE)
+# lod cutoffs
+summary(toughness.perm.hk,alpha=c(0.05, 0.1, 0.2))
+# LOD thresholds (1000 permutations)
+# lod
+# 5%  4.11
+# 10% 3.79
+# 20% 3.28
+tough_10cutoff_lod = 3.79
+summary(toughness.scanone.hk[toughness.scanone.hk$lod > tough_10cutoff_lod,])
+write.table(summary(toughness.scanone.hk[toughness.scanone.hk$lod > tough_10cutoff_lod,]), "leaf.toughness_sig.peaks_scanone-hk_hotone_covar_1kperm.txt", quote = F)
+
+#plot
+pdf("lf.toughness-qtl.pdf",24,7)
+par(mar = c(5, 5, 4, 2))
+plot(toughness.scanone.hk,lodcolumn=1, 
+     ylab="LOD score",
+     main = "leaf toughness",
+     cex.lab = 2,
+     cex.main = 2.5)
+abline(h=tough_10cutoff_lod, col="red", lwd=3)
+dev.off()
+
+
+### Percent N reabsorbed during drought
+Nreabs.scanone.hk <- scanone(Costus_prob, method="hk", pheno.col = "N_reabsorp", addcovar=covariates_Nreabs_select)
+plot(Nreabs.scanone.hk,lodcolumn=1, ylab="LOD score - %N reabsorbed in drought")
+summary(Nreabs.scanone.hk)
+write.table(Nreabs.scanone.hk,file="Nreabs.scanone-hk_hotone_covar.tsv",sep="\t",quote=FALSE)
+saveRDS(Nreabs.scanone.hk, file="Nreabs.scanone-hk_hotone_covar.rds")
+Nreabs.perm.hk <- scanone(Costus_prob, method="hk", pheno.col ="N_reabsorp", n.perm=1000, addcovar=covariates_Nreabs_select) 
+saveRDS(Nreabs.perm.hk, "Nreabs.scanone-hk_hotone_covar_1kperm.rds")
+plot(Nreabs.perm.hk,lodcolumn=1, ylab="LOD score - leaf N reabsorption")
+summary(Nreabs.scanone.hk, perms=Nreabs.perm.hk, alpha=0.1, pvalues=TRUE)
+# lod cutoffs
+summary(Nreabs.perm.hk,alpha=c(0.05, 0.1, 0.2))
+# LOD thresholds (1000 permutations)
+# lod
+# 5%  3.85
+# 10% 3.49
 # 20% 3.12
-cutoff_lod = 3.57 # based on 10%
+Nreabs_10cutoff_lod =3.49
+summary(Nreabs.scanone.hk[Nreabs.scanone.hk$lod > Nreabs_10cutoff_lod,])
+write.table(summary(Nreabs.scanone.hk[Nreabs.scanone.hk$lod > Nreabs_10cutoff_lod,]), "N.reabsorption_sig.peaks_scanone-hk_hotone_covar_1kperm.txt", quote = F)
 
-## look at highest LOD peak and the corresponding p-value on each chromosome
-summary(scanone.hk, perms=perm.hk, pvalues=TRUE)
+#plot
+pdf("Nreabs-qtl.pdf",24,7)
+par(mar = c(5, 5, 4, 2))
+plot(Nreabs.scanone.hk,lodcolumn=1, 
+     ylab="LOD score",
+     main = "% leaf nitrogen reabsorption",
+     cex.lab = 2,
+     cex.main = 2.5)
+abline(h=Nreabs_10cutoff_lod, col="red", lwd=3)
+dev.off()
 
-## look at peaks that surpass the 10% LOD threshold
-summary(scanone.hk, perms=perm.hk, alpha=0.1, pvalues=TRUE)
-summary(scanone.hk[scanone.hk$lod > cutoff_lod,])
 
-# ldmc
-summary(perm.hk,alpha=c(0.05, 0.1, 0.2))
-## 
-#lod
-# 5%  4.25
-# 10% 3.57
-# 20% 3.12
-cutoff_lod = 3.57 # based on 10%
+### Percent chlorophyll reabsorbed during drought
+Chlreabs.scanone.hk <- scanone(Costus_prob, method="hk", pheno.col = "chloro_reabsorp", addcovar=covariates_Chlreabs_select)
+plot(Chlreabs.scanone.hk,lodcolumn=1, ylab="LOD score - Chlorophyll reabsorbed in drought")
+summary(Chlreabs.scanone.hk)
+write.table(Chlreabs.scanone.hk,file="Chlreabs.scanone-hk_hotone_covar.tsv",sep="\t",quote=FALSE)
+saveRDS(Chlreabs.scanone.hk, file="Chlreabs.scanone-hk_hotone_covar.rds")
+Chlreabs.perm.hk <- scanone(Costus_prob, method="hk", pheno.col ="chloro_reabsorp", n.perm=1000, addcovar=covariates_Chlreabs_select)
+saveRDS(Chlreabs.perm.hk, "Chlreabs.scanone-hk_hotone_covar_1kperm.rds")
+plot(Chlreabs.perm.hk,lodcolumn=1, ylab="LOD score - leaf Chlorophyll reabsorption")
+summary(Chlreabs.scanone.hk, perms=Chlreabs.perm.hk, alpha=0.1, pvalues=TRUE)
+# lod cutoffs
+summary(Chlreabs.perm.hk,alpha=c(0.05, 0.1, 0.2))
+# LOD thresholds (1000 permutations)
+# lod
+# 5%  3.99
+# 10% 3.49
+# 20% 3.08
+Chlreabs_10cutoff_lod = 3.49
+summary(Chlreabs.scanone.hk[Chlreabs.scanone.hk$lod > Chlreabs_10cutoff_lod,])
+write.table(summary(Chlreabs.scanone.hk[Chlreabs.scanone.hk$lod > Chlreabs_10cutoff_lod,]), "chloro.reabsorption_sig.peaks_scanone-hk_hotone_covar_1kperm.txt", quote = F)
 
-## look at highest LOD peak and the corresponding p-value on each chromosome
-summary(scanone.hk, perms=perm.hk, pvalues=TRUE)
-
-## look at peaks that surpass the 10% LOD threshold
-summary(scanone.hk, perms=perm.hk, alpha=0.1, pvalues=TRUE)
-summary(scanone.hk[scanone.hk$lod > cutoff_lod,])
-
-# thickness
-summary(perm.hk,alpha=c(0.05, 0.1, 0.2))
-## 
-#lod
-# 5%  4.25
-# 10% 3.57
-# 20% 3.12
-cutoff_lod = 3.57 # based on 10%
-
-## look at highest LOD peak and the corresponding p-value on each chromosome
-summary(scanone.hk, perms=perm.hk, pvalues=TRUE)
-
-## look at peaks that surpass the 10% LOD threshold
-summary(scanone.hk, perms=perm.hk, alpha=0.1, pvalues=TRUE)
-summary(scanone.hk[scanone.hk$lod > cutoff_lod,])
-
-# toughness
-summary(perm.hk,alpha=c(0.05, 0.1, 0.2))
-## 
-#lod
-# 5%  4.25
-# 10% 3.57
-# 20% 3.12
-cutoff_lod = 3.57 # based on 10%
-
-## look at highest LOD peak and the corresponding p-value on each chromosome
-summary(scanone.hk, perms=perm.hk, pvalues=TRUE)
-
-## look at peaks that surpass the 10% LOD threshold
-summary(scanone.hk, perms=perm.hk, alpha=0.1, pvalues=TRUE)
-summary(scanone.hk[scanone.hk$lod > cutoff_lod,])
-
-# %N reabsorbed in drought
-summary(perm.hk,alpha=c(0.05, 0.1, 0.2))
-## 
-#lod
-# 5%  4.25
-# 10% 3.57
-# 20% 3.12
-cutoff_lod = 3.57 # based on 10%
-
-## look at highest LOD peak and the corresponding p-value on each chromosome
-summary(scanone.hk, perms=perm.hk, pvalues=TRUE)
-
-## look at peaks that surpass the 10% LOD threshold
-summary(scanone.hk, perms=perm.hk, alpha=0.1, pvalues=TRUE)
-summary(scanone.hk[scanone.hk$lod > cutoff_lod,])
-
-# %chlorophyll reabsorbed in drought
-summary(perm.hk,alpha=c(0.05, 0.1, 0.2))
-## 
-#lod
-# 5%  4.25
-# 10% 3.57
-# 20% 3.12
-cutoff_lod = 3.57 # based on 10%
-
-## look at highest LOD peak and the corresponding p-value on each chromosome
-summary(scanone.hk, perms=perm.hk, pvalues=TRUE)
-
-## look at peaks that surpass the 10% LOD threshold
-summary(scanone.hk, perms=perm.hk, alpha=0.1, pvalues=TRUE)
-summary(scanone.hk[scanone.hk$lod > cutoff_lod,])
-
-# 1st scan: chr22 ScyDAA6-2113-HRSCAF-2539:8811359 ScyDAA6-2113-HRSCAF-2539 8.81 4.37 0.097
-# output all markers with LOD score above 10% LOD threshold
-write.table(scanone.hk[scanone.hk$lod > cutoff_lod,],file="GR_cm.dy_scanone-hk_hotone_covar-0.1LODcutoff.tsv",sep="\t",quote=FALSE)
-
-## perform a single-qtl scan 
-scanone.hk <- scanone(Costus_prob, method="hk", pheno.col = "GR_cm.dy", addcovar=covariates_GRselect)
-plot(scanone.hk,col="black")
-summary(scanone.hk)
-write.table(scanone.hk,file="GR_cm.dy_scanone-hk_hotone_covar.tsv",sep="\t",quote=FALSE)
-#write.table(scanone.hk,file="ltreb-only-CTmax_22-1hot-site-tanks.scanone-hk_second-scan-w-qtl-covariate.tsv",sep="\t",quote=FALSE)
-saveRDS(scanone.hk, file="GR_cm.dy_scanone-hk_hotone_covar.rds")
-
-## run permutations to define the LOD threshold of significance
-perm.hk <- scanone(Costus_prob, method="hk", pheno.col = "days_to_radicle", n.perm=1000) # ADD BACK  addcovar=covariates,
-saveRDS(perm.hk, "GR_cm.dy_scanone-hk_hotone_covar.rds")
-#saveRDS(perm.hk, "LTREB-only-ctmax_perm_site-tank.hk.no-xtreme_1hot-site-tank_perm.hk_second-scan-w-qtl-covariate.rds")
-
-## get genome-wide LOD thresholds using genome-scan-adjusted p-values
-summary(perm.hk,alpha=c(0.05, 0.1, 0.2))
-## ctmax ~ hi+17sig.site.tanks <- figure out meaning.. make my equivalent
-#lod
-# 5%  4.25
-# 10% 3.57
-# 20% 3.12
-cutoff_lod = 3.57 # based on 10%
-
-## look at highest LOD peak and the corresponding p-value on each chromosome
-summary(scanone.hk, perms=perm.hk, pvalues=TRUE)
-
-## look at peaks that surpass the 10% LOD threshold
-summary(scanone.hk, perms=perm.hk, alpha=0.1, pvalues=TRUE)
-summary(scanone.hk[scanone.hk$lod > cutoff_lod,])
-
-# 1st scan: chr22 ScyDAA6-2113-HRSCAF-2539:8811359 ScyDAA6-2113-HRSCAF-2539 8.81 4.37 0.097
-# output all markers with LOD score above 10% LOD threshold
-write.table(scanone.hk[scanone.hk$lod > cutoff_lod,],file="GR_cm.dy_scanone-hk_hotone_covar-0.1LODcutoff.tsv",sep="\t",quote=FALSE)
-
-## plot chr22 peak
-pdf("ltreb-only-CTmax_17-1hot-site-tanks_chr22-qtl.pdf",8.4,8.9)
-plot(scanone.hk,chr="ScyDAA6-2113-HRSCAF-2539") # chr22
-abline(h=cutoff_lod, col="red", lwd=3)
-title("22@8.81")
+#plot
+pdf("Chlreabs-qtl.pdf",24,7)
+par(mar = c(5, 5, 4, 2))
+plot(Chlreabs.scanone.hk,lodcolumn=1, 
+     ylab="LOD score",
+     main = "% chlorophyll reabsorption",
+     cex.lab = 2,
+     cex.main = 2.5)
+abline(h=Chlreabs_10cutoff_lod, col="red", lwd=3)
 dev.off()
 
 
 ###### LOD peak support ######
-
-## get the 1.5-LOD support interval for significant peaks
-lint = cutoff_lod - 1.5   # 2.83
-lodint(scanone.hk,"ScyDAA6-2113-HRSCAF-2539",drop=1.5,expandtomarkers = TRUE)
-#ScyDAA6-2113-HRSCAF-2539:7006520  ScyDAA6-2113-HRSCAF-2539  7.006520 2.713022
-#ScyDAA6-2113-HRSCAF-2539:8811359  ScyDAA6-2113-HRSCAF-2539  8.811359 4.366771
-#ScyDAA6-2113-HRSCAF-2539:10301012 ScyDAA6-2113-HRSCAF-2539 10.301012 2.856064
-
-## get the 2.0-LOD support interval for significant peaks
-lint2 = cutoff_lod - 2   # 2.33
-lodint(scanone.hk,"ScyDAA6-2113-HRSCAF-2539",drop=2,expandtomarkers = TRUE)
-#ScyDAA6-2113-HRSCAF-2539:6963205  ScyDAA6-2113-HRSCAF-2539  6.963205 2.257862
-#ScyDAA6-2113-HRSCAF-2539:8811359  ScyDAA6-2113-HRSCAF-2539  8.811359 4.366771
-#ScyDAA6-2113-HRSCAF-2539:12213851 ScyDAA6-2113-HRSCAF-2539 12.213851 2.163837
-
 ## get 95% Bayes credible interval
-bayesint(scanone.hk,"ScyDAA6-2113-HRSCAF-2539",0.95,expandtomarkers = TRUE)
-#ScyDAA6-2113-HRSCAF-2539:6984383  ScyDAA6-2113-HRSCAF-2539  6.984383 2.412447
-#ScyDAA6-2113-HRSCAF-2539:8811359  ScyDAA6-2113-HRSCAF-2539  8.811359 4.366771
-#ScyDAA6-2113-HRSCAF-2539:12192947 ScyDAA6-2113-HRSCAF-2539 12.192947 2.479510
+
+# seed dormancy
+bayesint(seed.dormancy.scanone.hk, 0.95,expandtomarkers = TRUE)
+
+# growth rate
+bayesint(growth.rate.scanone.hk, 0.95,expandtomarkers = TRUE)
+
+# leaf thickness
+bayesint(thickness.scanone.hk, 0.95,expandtomarkers = TRUE)
+
+# leaf toughness
+bayesint(toughness.scanone.hk, 0.95,expandtomarkers = TRUE)
+
+# N reabsorption
+bayesint(Nreabs.scanone.hk, 0.95,expandtomarkers = TRUE)
+
+# chlorophyll reabsorption
+bayesint(Chlreabs.scanone.hk, 0.95,expandtomarkers = TRUE)
 
 #out.boot <- scanoneboot(data_prob,chr="ScyDAA6-2113-HRSCAF-2539",n.boot=1000,prob=0.95)
 #summary(out.boot)
 #plot(out.boot)
 
 
-###### MAKE EFFECT PLOTS ######
+# ###### MAKE EFFECT PLOTS ######
+# 
+# ##chr22 qtl effect plot
+# setwd("~/Box/Schumer_lab_resources/Project_files/Thermal_tolerance_projects/Data/LTREB_qtl/CTmax-QTL_first-scan_data")
+# data_prob.df <- read.csv("ltreb-ctmax-qtl-filtered_22-1hot-site-tank_data-prob.csv")
+# qtl_genos <- data_prob.df$ScyDAA6.2113.HRSCAF.2539.8811359
+# qtl_genos[qtl_genos == "-"] <- NA
+# ctmax <- data_prob.df$ctmax
+# qtl22_peak_data <- data.frame(ctmax=ctmax,qtl22_geno=qtl_genos)
+# qtl22_peak_data <- na.omit(qtl22_peak_data)
+# 
+# BB<-qtl22_peak_data[qtl22_peak_data$qtl22_geno=="BB",]$ctmax
+# MB<-qtl22_peak_data[qtl22_peak_data$qtl22_geno=="AB",]$ctmax
+# MM<-qtl22_peak_data[qtl22_peak_data$qtl22_geno=="AA",]$ctmax
+# 
+# malcol_22=rgb(0/255,0/255,175/255)
+# hetcol_22=rgb(100/255,0/255,175/255)
+# bircol_22=rgb(150/255,0/255,0/255)
+# 
+# ## error bar function (plot 1 SD)
+# error.bar <- function(x, y, upper, lower=upper, length=0.1,...){
+#   if(length(x) != length(y) | length(y) !=length(lower) | length(lower) != length(upper))
+#     stop("vectors must be same length")
+#   arrows(x,y+upper, x, y-lower, angle=90, code=3, length=length, ...)
+# }
+# 
+# se <- function(x) 2*(sd(x)/sqrt(length(x)))
+# 
+# pdf("ltreb-only-CTmax_17-1hot-site-tanks_chr22-qtl-effect-plot-w-points_2se.pdf",5.5,7)
+# 
+# plot(1:3,c(mean(MM),mean(MB),mean(BB)),col=c(malcol_22,hetcol_22,bircol_22),ylim=c(32,38),xlab="Genotype",ylab="Normalized counts",xaxt="n",pch="-",cex=3,xlim=c(0.5,3.5))
+# error.bar(1:3,c(mean(MM),mean(MB),mean(BB)),c(se(MM),se(MB),se(BB)),col=c(malcol_22,hetcol_22,bircol_22),lwd=2)
+# 
+# malcol=rgb(0/255,0/255,175/255,alpha=0.3)
+# hetcol=rgb(100/255,0/255,175/255,alpha=0.6)
+# bircol=rgb(150/255,0/255,0/255,alpha=0.6)
+# 
+# noise<-runif(length(BB),0.2,0.35)
+# points(rep(3,length(BB))+noise,BB,pch=20,cex=1.8,col=bircol)
+# 
+# noise<-runif(length(MB),0.2,0.35)
+# points(rep(2,length(MB))+noise,MB,pch=20,cex=1.8,col=hetcol)
+# 
+# noise<-runif(length(MM),0.2,0.35)
+# points(rep(1,length(MM))+noise,MM,pch=20,cex=1.8,col=malcol)
+# 
+# mtext(c("MM","MB","BB"),at=1:3,side=1)
+# 
+# dev.off()
+# 
+# 
+# ### other effect plots
+# ## Load data_prob object
+# data_prob <- readRDS("ltreb-ctmax-qtl-filtered_22-1hot-site-tank_data-prob.rds")
+# 
+# ## impute missing genotypes
+# data_sim <- sim.geno(data_prob,step=1,n.draws=16)
+# 
+# ## plot estimated effect of QTL: phenotype vs marker genotype
+# malcol=rgb(0/255,0/255,175/255)
+# hetcol=rgb(100/255,0/255,175/255)
+# bircol=rgb(150/255,0/255,0/255)
+# effect_colors = c(malcol,hetcol,bircol)
+# 
+# ## plot estimated effect of QTL: phenotype vs marker genotype
+# # 1st scan
+# mar_chr22 <- find.marker(data_prob, chr='ScyDAA6-2113-HRSCAF-2539', pos=8.811359)
+# # simple effect plot
+# pdf("ltreb-only-CTmax_17-1hot-site-tanks_chr22-qtl-effect-plot.pdf",8.4,8.9)
+# effectplot(data_sim,mname1=mar_chr22,main='22@8.81')
+# dev.off()
+# # effect plots with individuals as points
+# pdf("ltreb-only-CTmax_17-1hot-site-tanks_chr22-qtl-effect-plot-w-points.pdf",5.5,7)
+# plotPXG(data_prob,marker=mar_chr22,main='22@8.81',infer=FALSE, ylab = expression('CT'['max']*' ('*~degree*C*')'), col = effect_colors)
+# dev.off()
+# 
+# ## get QTL effect on CTmax per genotype at peak
+# eff <- effectplot(data_sim,mname1=mar_chr22)
+# eff
+# # ScyDAA6-2113-HRSCAF-2539:8811359
+# #      mean      SE
+# #  AA: 35.98525, 0.1777719
+# #  AB: 35.65896, 0.1180658
+# #  BB: 36.00340, 0.1713042
+# 
+# ## plot estimated QTL effects along chr22 (shows additive and dominance effects)
+# # effect summary for 22@8.81:
+# # a           d             se.a        se.d
+# # 0.008494465	-0.337265149	0.124726314	0.172637572
+# effect_table<-effectscan(data_sim, pheno.col="ctmax", c("ScyDAA6-2113-HRSCAF-2539"), draw=F, get.se=T)
+# write.table(effect_table,file="ltreb-only-CTmax_17-1hot-site-tanks.chr22-qtl_effect-table.tsv",sep="\t",quote=FALSE)
+# # plot effect across chr22
+# pdf("ltreb-only-CTmax_17-1hot-site-tanks_chr22-additive-dominance-effects-plot.pdf",9.2,6.8)
+# effectscan(data_sim, pheno.col="ctmax", c("ScyDAA6-2113-HRSCAF-2539"), draw=T, get.se=T)
+# dev.off()
 
-### Payne et al 2021 effect plots
 
-##chr22 qtl effect plot
-setwd("~/Box/Schumer_lab_resources/Project_files/Thermal_tolerance_projects/Data/LTREB_qtl/CTmax-QTL_first-scan_data")
-data_prob.df <- read.csv("ltreb-ctmax-qtl-filtered_22-1hot-site-tank_data-prob.csv")
-qtl_genos <- data_prob.df$ScyDAA6.2113.HRSCAF.2539.8811359
-qtl_genos[qtl_genos == "-"] <- NA
-ctmax <- data_prob.df$ctmax
-qtl22_peak_data <- data.frame(ctmax=ctmax,qtl22_geno=qtl_genos)
-qtl22_peak_data <- na.omit(qtl22_peak_data)
 
-BB<-qtl22_peak_data[qtl22_peak_data$qtl22_geno=="BB",]$ctmax
-MB<-qtl22_peak_data[qtl22_peak_data$qtl22_geno=="AB",]$ctmax
-MM<-qtl22_peak_data[qtl22_peak_data$qtl22_geno=="AA",]$ctmax
-
-malcol_22=rgb(0/255,0/255,175/255)
-hetcol_22=rgb(100/255,0/255,175/255)
-bircol_22=rgb(150/255,0/255,0/255)
-
-## error bar function (plot 1 SD)
-error.bar <- function(x, y, upper, lower=upper, length=0.1,...){
-  if(length(x) != length(y) | length(y) !=length(lower) | length(lower) != length(upper))
-    stop("vectors must be same length")
-  arrows(x,y+upper, x, y-lower, angle=90, code=3, length=length, ...)
-}
-
-se <- function(x) 2*(sd(x)/sqrt(length(x)))
-
-pdf("ltreb-only-CTmax_17-1hot-site-tanks_chr22-qtl-effect-plot-w-points_2se.pdf",5.5,7)
-
-plot(1:3,c(mean(MM),mean(MB),mean(BB)),col=c(malcol_22,hetcol_22,bircol_22),ylim=c(32,38),xlab="Genotype",ylab="Normalized counts",xaxt="n",pch="-",cex=3,xlim=c(0.5,3.5))
-error.bar(1:3,c(mean(MM),mean(MB),mean(BB)),c(se(MM),se(MB),se(BB)),col=c(malcol_22,hetcol_22,bircol_22),lwd=2)
-
-malcol=rgb(0/255,0/255,175/255,alpha=0.3)
-hetcol=rgb(100/255,0/255,175/255,alpha=0.6)
-bircol=rgb(150/255,0/255,0/255,alpha=0.6)
-
-noise<-runif(length(BB),0.2,0.35)
-points(rep(3,length(BB))+noise,BB,pch=20,cex=1.8,col=bircol)
-
-noise<-runif(length(MB),0.2,0.35)
-points(rep(2,length(MB))+noise,MB,pch=20,cex=1.8,col=hetcol)
-
-noise<-runif(length(MM),0.2,0.35)
-points(rep(1,length(MM))+noise,MM,pch=20,cex=1.8,col=malcol)
-
-mtext(c("MM","MB","BB"),at=1:3,side=1)
-
-dev.off()
-
-
-### other effect plots
-## Load data_prob object
-data_prob <- readRDS("ltreb-ctmax-qtl-filtered_22-1hot-site-tank_data-prob.rds")
-
-## impute missing genotypes
-data_sim <- sim.geno(data_prob,step=1,n.draws=16)
-
-## plot estimated effect of QTL: phenotype vs marker genotype
-malcol=rgb(0/255,0/255,175/255)
-hetcol=rgb(100/255,0/255,175/255)
-bircol=rgb(150/255,0/255,0/255)
-effect_colors = c(malcol,hetcol,bircol)
-
-## plot estimated effect of QTL: phenotype vs marker genotype
-# 1st scan
-mar_chr22 <- find.marker(data_prob, chr='ScyDAA6-2113-HRSCAF-2539', pos=8.811359)
-# simple effect plot
-pdf("ltreb-only-CTmax_17-1hot-site-tanks_chr22-qtl-effect-plot.pdf",8.4,8.9)
-effectplot(data_sim,mname1=mar_chr22,main='22@8.81')
-dev.off()
-# effect plots with individuals as points
-pdf("ltreb-only-CTmax_17-1hot-site-tanks_chr22-qtl-effect-plot-w-points.pdf",5.5,7)
-plotPXG(data_prob,marker=mar_chr22,main='22@8.81',infer=FALSE, ylab = expression('CT'['max']*' ('*~degree*C*')'), col = effect_colors)
-dev.off()
-
-## get QTL effect on CTmax per genotype at peak
-eff <- effectplot(data_sim,mname1=mar_chr22)
-eff
-# ScyDAA6-2113-HRSCAF-2539:8811359
-#      mean      SE
-#  AA: 35.98525, 0.1777719
-#  AB: 35.65896, 0.1180658
-#  BB: 36.00340, 0.1713042
-
-## plot estimated QTL effects along chr22 (shows additive and dominance effects)
-# effect summary for 22@8.81:
-# a           d             se.a        se.d
-# 0.008494465	-0.337265149	0.124726314	0.172637572
-effect_table<-effectscan(data_sim, pheno.col="ctmax", c("ScyDAA6-2113-HRSCAF-2539"), draw=F, get.se=T)
-write.table(effect_table,file="ltreb-only-CTmax_17-1hot-site-tanks.chr22-qtl_effect-table.tsv",sep="\t",quote=FALSE)
-# plot effect across chr22
-pdf("ltreb-only-CTmax_17-1hot-site-tanks_chr22-additive-dominance-effects-plot.pdf",9.2,6.8)
-effectscan(data_sim, pheno.col="ctmax", c("ScyDAA6-2113-HRSCAF-2539"), draw=T, get.se=T)
-dev.off()
-
-
-###### MULTI-QTL ANALYSIS ######
-
-# create QTL object with both loci
-# what="prob" will out the QTL genotype probabilities for use in HK regression
-qtl <- makeqtl(data_prob, chr=c("ScyDAA6-2113-HRSCAF-2539","ScyDAA6-5984-HRSCAF-6694"), pos=c(8.81, 4.41), what="prob")
-
-# set covariates
-covariates <- pull.pheno(data_prob, c("hybrid_index","STH.1","STH.2","STH.3","STH.4","STH.7","STH.8","STL.1","STL.2","STL.4","STL.5","STL.6","STL.7","STM.2",
-                                      "STM.4","STM.5","STM.6","STM.7"))
-
-# fit the two locus additive model
-# “drop one term at a time” table compares the fit of the two-QTL model to the reduced model where one QTL is omitted.
-out.fq <- fitqtl(data_prob, pheno.col=1, qtl=qtl, method="hk", get.ests=TRUE, covar=covariates, formula=y~Q1+Q2 + hybrid_index + STH.1 + STH.2 + STH.3 + STH.4 + STH.7 + STH.8 + STL.1 + STL.2 + STL.4 + STL.5 + STL.6 + STL.7 + STM.2 + STM.4 + STM.5 + STM.6 + STM.7)
-summary(out.fq)
-
-# determine whether there is an interaction between the two QTL by fitting the model with the interaction
-out.fqi <- fitqtl(data_prob, pheno.col=1, qtl=qtl, method="hk", get.ests=TRUE, covar=covariates, formula=y~Q1+Q2+Q1:Q2 + hybrid_index + STH.1 + STH.2 + STH.3 + STH.4 + STH.7 + STH.8 + STL.1 + STL.2 + STL.4 + STL.5 + STL.6 + STL.7 + STM.2 + STM.4 + STM.5 + STM.6 + STM.7)
-summary(out.fqi)
-
-# also assess interaction with addint, which adds one interaction at a time
-addint(data_prob, qtl=qtl, method="hk")
-
-# refine the qtl positions
-# each QTL is moved to the position giving the highest likelihood,
-# and the entire process is repeated until no further improvement in likelihood can be obtained
-rqtl <- refineqtl(data_prob, qtl=qtl, method="hk")
-rqtl
-#                             name                      chr     pos n.gen
-# Q1 ScyDAA6-2113-HRSCAF-2539@10.0 ScyDAA6-2113-HRSCAF-2539 10.0490     3
-# Q2  ScyDAA6-5984-HRSCAF-6694@5.7 ScyDAA6-5984-HRSCAF-6694  5.7399     3
-
-# look for additional qtl, using the refined qtl positions
-out.aq_1qtl <- addqtl(data_prob, qtl=rqtl, method="hk", covar=covariates, formula=y~Q1 + hybrid_index + STH.1 + STH.2 + STH.3 + STH.4 + STH.7 + STH.8 + STL.1 + STL.2 + STL.4 + STL.5 + STL.6 + STL.7 + STM.2 + STM.4 + STM.5 + STM.6 + STM.7)
-out.aq_2qtl <- addqtl(data_prob, qtl=rqtl, method="hk", covar=covariates, formula=y~Q1+Q2+Q1:Q2 + hybrid_index + STH.1 + STH.2 + STH.3 + STH.4 + STH.7 + STH.8 + STL.1 + STL.2 + STL.4 + STL.5 + STL.6 + STL.7 + STM.2 + STM.4 + STM.5 + STM.6 + STM.7)
-
-plot(out.aq_1qtl)
-summary(out.aq_1qtl)
-out.aq_1qtl[out.aq_1qtl$lod > 3,]
-# as expected, recovers chr15 qtl
-# ScyDAA6-5984-HRSCAF-6694:5847498  ScyDAA6-5984-HRSCAF-6694 5.85e+00 3.503
-plot(out.aq_2qtl)
-summary(out.aq_2qtl)
-out.aq_2qtl[out.aq_2qtl$lod > 3,]
-#                                                        chr      pos   lod
-# ScyDAA6-1854-HRSCAF-2213:18020066 ScyDAA6-1854-HRSCAF-2213 1.80e+01 3.512
-# ScyDAA6-2469-HRSCAF-2980:1032301  ScyDAA6-2469-HRSCAF-2980 1.03e+00 3.360
-
-# grab the 1.5-LOD for both of these
-lod_cutoff = 3.512-1.5
-write.csv(out.aq_2qtl[out.aq_2qtl$chr == "ScyDAA6-1854-HRSCAF-2213" & out.aq_2qtl$lod > lod_cutoff,], "CTmax-chr22-chr15-add-qtl_ScyDAA6-1854-HRSCAF-2213_1.5LOD.csv")
-lod_cutoff = 3.36-1.5
-write.csv(out.aq_2qtl[out.aq_2qtl$chr == "ScyDAA6-2469-HRSCAF-2980" & out.aq_2qtl$lod > lod_cutoff,], "CTmax-chr22-chr15-add-qtl_ScyDAA6-1854-HRSCAF-2213_1.5LOD.csv")
-
-
-###### ROUGHLY ESTIMATE EFFECT OF QTL WITH AN LM ######
-
-### get a very rough estimate of the QTL effect size with R^2
-## load infile as data.frame and do correlations/lm with that
-data_prob.df <- read.csv("ltreb-ctmax-qtl-filtered_22-1hot-site-tank_data-prob.csv")
-
-## grab all relevant variables
-ctmax <- data_prob.df$ctmax
-hi <- data_prob.df$hybrid_index
-STH.1<-data_prob.df$STH.1
-STH.2<-data_prob.df$STH.2
-STH.3<-data_prob.df$STH.3
-STH.4<-data_prob.df$STH.4
-STH.7<-data_prob.df$STH.7
-STH.8<-data_prob.df$STH.8
-STL.1<-data_prob.df$STL.1
-STL.2<-data_prob.df$STL.2
-STL.4<-data_prob.df$STL.4
-STL.5<-data_prob.df$STL.5
-STL.6<-data_prob.df$STL.6
-STL.7<-data_prob.df$STL.7
-STM.2<-data_prob.df$STM.2
-STM.4<-data_prob.df$STM.4
-STM.5<-data_prob.df$STM.5
-STM.6<-data_prob.df$STM.6
-STM.7<-data_prob.df$STM.7
-
-# grab the genotypes of the locus at the QTL peak
-chr22_geno <- data_prob.df$ScyDAA6.2113.HRSCAF.2539.8811359
-chr15_geno <- data_prob.df$ScyDAA6.5984.HRSCAF.6694.4408039
-
-## optional: output genotypes for markers that fall under the QTL / within the 2-LOD interval: 6.963205 - 12.213851
-firstcol = which(colnames(data_prob.df)=="ScyDAA6.2113.HRSCAF.2539.6963205")
-lastcol = which(colnames(data_prob.df)=="ScyDAA6.2113.HRSCAF.2539.12213851")
-qtl_genos <- data_prob.df[c(firstcol:lastcol)]
-qtl_geno_outdf <- data.frame(ctmax,hi,STH.1,STH.2,STH.3,STH.4,STH.7,STH.8,STL.1,STL.2,STL.4,STL.5,STL.6,STL.7,STM.2,STM.4,STM.5,STM.6,STM.7,qtl_genos)
-write.csv(qtl_geno_outdf,'./ltreb-ctmax-qtl_genos-all-markers-under-2LOD-chr22-qtl.csv',row.names=F,quote=F)
-
-### chr22 QTL LM effect size estimate and p-values
-## organize variables of interest into new data frame, remove missing data
-dp_noNA<-data.frame(ctmax,hi,chr22_geno,STH.1,STH.2,STH.3,STH.4,STH.7,STH.8,STL.1,STL.2,STL.4,STL.5,STL.6,STL.7,STM.2,STM.4,STM.5,STM.6,STM.7)
-dp_noNA[dp_noNA == '-']<-NA
-dp_noNA<-na.omit(dp_noNA)
-dim(dp_noNA)
-
-## perform a linear regression with the full model and get the R^2 value
-# full model adjusted R^2: 0.6731 (pval < 2e-16)
-lm.res<-lm(ctmax ~ chr22_geno + hi + STH.1 + STH.2 + STH.3 + STH.4 + STH.7 + STH.8 + STL.1 +
-             STL.2 + STL.4 + STL.5 + STL.6 + STL.7 + STM.2 + STM.4 + STM.5 +
-             STM.6 + STM.7,data=dp_noNA)
-summary(lm.res)
-
-## get the adjusted R^2 from the null model (i.e. without genotype as a coefficient)
-# null adj R^2: 0.6289 (pval < 2e-16)
-null.lm.res<-lm(ctmax ~ hi + STH.1 + STH.2 + STH.3 + STH.4 + STH.7 + STH.8 + STL.1 +
-                  STL.2 + STL.4 + STL.5 + STL.6 + STL.7 + STM.2 + STM.4 + STM.5 +
-                  STM.6 + STM.7,data=dp_noNA)
-summary(null.lm.res)
-
-## subtract the adjusted R^2 of the null model from the full model to get effect estimate
-effect = 0.6731 - 0.6289 # 0.0442 (4.42%)
-
-
-## get log likelihood difference between focal and null models
-summary(lm.res)
-model2<-glm(as.numeric(ctmax)~as.numeric(hi)+
-              as.factor(STH.1) + as.factor(STH.2) + as.factor(STH.3) +
-              as.factor(STH.4) + as.factor(STH.7) + as.factor(STH.8) +
-              as.factor(STL.1) + as.factor(STL.2) + as.factor(STL.4) +
-              as.factor(STL.5) + as.factor(STL.6) + as.factor(STL.7) +
-              as.factor(STM.2) + as.factor(STM.4) + as.factor(STM.5) +
-              as.factor(STM.6) + as.factor(STM.7),data=dp_noNA,family="gaussian")
-null<-logLik(model2)[1]
-
-model1<-glm(as.numeric(ctmax)~as.numeric(hi)+
-              as.factor(STH.1) + as.factor(STH.2) + as.factor(STH.3) +
-              as.factor(STH.4) + as.factor(STH.7) + as.factor(STH.8) +
-              as.factor(STL.1) + as.factor(STL.2) + as.factor(STL.4) +
-              as.factor(STL.5) + as.factor(STL.6) + as.factor(STL.7) +
-              as.factor(STM.2) + as.factor(STM.4) + as.factor(STM.5) +
-              as.factor(STM.6) + as.factor(STM.7) + as.factor(geno),data=dp_noNA,family="gaussian")
-focal<-logLik(model1)[1]
-
-# calculate log likelihood difference
-like_diff<-focal-null
-like_diff # 10.03532
-
-
-### chr15 QTL LM effect size estimate
-## organize variables of interest into new data frame, remove missing data
-dp_noNA<-data.frame(ctmax,hi,chr15_geno,STH.1,STH.2,STH.3,STH.4,STH.7,STH.8,STL.1,STL.2,STL.4,STL.5,STL.6,STL.7,STM.2,STM.4,STM.5,STM.6,STM.7)
-dp_noNA[dp_noNA == '-']<-NA
-dp_noNA<-na.omit(dp_noNA)
-dim(dp_noNA)
-# full model adjusted R^2: 0.6417 (pval < 2e-16)
-lm.res<-lm(ctmax ~ chr15_geno + hi + STH.1 + STH.2 + STH.3 + STH.4 + STH.7 + STH.8 + STL.1 +
-             STL.2 + STL.4 + STL.5 + STL.6 + STL.7 + STM.2 + STM.4 + STM.5 +
-             STM.6 + STM.7,data=dp_noNA)
-summary(lm.res)
-
-## get the adjusted R^2 from the null model (i.e. without genotype as a coefficient)
-# null adj R^2: 0.6203 (pval < 2e-16)
-null.lm.res<-lm(ctmax ~ hi +STH.1 + STH.2 + STH.3 + STH.4 + STH.7 + STH.8 + STL.1 +
-                  STL.2 + STL.4 + STL.5 + STL.6 + STL.7 + STM.2 + STM.4 + STM.5 +
-                  STM.6 + STM.7,data=dp_noNA)
-summary(null.lm.res)
-
-## subtract the adjusted R^2 of the null model from the full model to get effect estimate
-effect = 0.6417 - 0.6203 # 0.214 (2.14%)
-
-### both QTL LM effect size estimate
-## organize variables of interest into new data frame, remove missing data
-dp_noNA<-data.frame(ctmax,hi,chr22_geno,chr15_geno,STH.1,STH.2,STH.3,STH.4,STH.7,STH.8,STL.1,STL.2,STL.4,STL.5,STL.6,STL.7,STM.2,STM.4,STM.5,STM.6,STM.7)
-dp_noNA[dp_noNA == '-']<-NA
-dp_noNA<-na.omit(dp_noNA)
-dim(dp_noNA)
-# full model adjusted R^2: 0.7126 (pval < 2e-16)
-lm.res<-lm(ctmax ~ chr22_geno + chr15_geno + chr22_geno:chr15_geno + hi + STH.1 + STH.2 + STH.3 + STH.4 + STH.7 + STH.8 + STL.1 +
-             STL.2 + STL.4 + STL.5 + STL.6 + STL.7 + STM.2 + STM.4 + STM.5 +
-             STM.6 + STM.7,data=dp_noNA)
-summary(lm.res)
-
-## get the adjusted R^2 from the null model (i.e. without genotype as a coefficient)
-# null adj R^2: 0.6306 (pval < 2e-16)
-null.lm.res<-lm(ctmax ~ hi + STH.1 + STH.2 + STH.3 + STH.4 + STH.7 + STH.8 + STL.1 +
-                  STL.2 + STL.4 + STL.5 + STL.6 + STL.7 + STM.2 + STM.4 + STM.5 +
-                  STM.6 + STM.7,data=dp_noNA)
-summary(null.lm.res)
-
-## subtract the adjusted R^2 of the null model from the full model to get effect estimate
-effect = 0.7126 - 0.6306 # 0.082 (8.2%)
-
-
-### chr22:15 QTL interaction LM effect size estimate
-## organize variables of interest into new data frame, remove missing data
-library(mltools)
-library(data.table)
-library(rstatix)
-dp_noNA<-data.frame(ctmax,hi,chr22_geno,chr15_geno,STH.1,STH.2,STH.3,STH.4,STH.7,STH.8,STL.1,STL.2,STL.4,STL.5,STL.6,STL.7,STM.2,STM.4,STM.5,STM.6,STM.7)
-dp_noNA[dp_noNA == '-']<-NA
-dp_noNA<-na.omit(dp_noNA)
-dim(dp_noNA)
-
-# full model adjusted R^2: 0.7126 (pval < 2e-16)
-lm.res<-lm(ctmax ~ chr22_geno + chr15_geno + chr22_geno:chr15_geno + hi + STH.1 + STH.2 + STH.3 + STH.4 + STH.7 + STH.8 + STL.1 +
-             STL.2 + STL.4 + STL.5 + STL.6 + STL.7 + STM.2 + STM.4 + STM.5 +
-             STM.6 + STM.7,data=dp_noNA)
-summary(lm.res)
-
-## get the adjusted R^2 from the null model (i.e. without genotype as a coefficient)
-# null adj R^2: 0.687 (pval < 2e-16)
-null.lm.res<-lm(ctmax ~ chr22_geno + chr15_geno + hi + STH.1 + STH.2 + STH.3 + STH.4 + STH.7 + STH.8 + STL.1 +
-                  STL.2 + STL.4 + STL.5 + STL.6 + STL.7 + STM.2 + STM.4 + STM.5 +
-                  STM.6 + STM.7,data=dp_noNA)
-summary(null.lm.res)
-
-## subtract the adjusted R^2 of the null model from the full model to get effect estimate
-effect = 0.7126 - 0.687 # 0.0256 (2.6%)
-
-## eta squared to get effect size per variable
-eta_squared(aov(ctmax ~ chr22_geno + chr15_geno + chr22_geno:chr15_geno + hi + STH.1 + STH.2 + STH.3 + STH.4 + STH.7 + STH.8 + STL.1 + STL.2 + STL.4 + STL.5 + STL.6 + STL.7 + STM.2 + STM.4 + STM.5 + STM.6 + STM.7, dp_noNA))
-
-
-### chr22:chr15 QTL comparison of means w anova/tukey
-lm.res<-lm(ctmax ~ chr22_geno + chr15_geno + chr22_geno:chr15_geno + hi + STH.1 + STH.2 + STH.3 + STH.4 + STH.7 + STH.8 + STL.1 +
-             STL.2 + STL.4 + STL.5 + STL.6 + STL.7 + STM.2 + STM.4 + STM.5 +
-             STM.6 + STM.7,data=dp_noNA)
-anov <- aov(lm.res)
-TukeyHSD(x=anov, 'chr22_geno', conf.level=0.95)
-TukeyHSD(x=anov, 'chr15_geno', conf.level=0.95)
-TukeyHSD(x=anov, 'chr22_geno:chr15_geno', conf.level=0.95)
-
-
-###### CREATE A NICE MANHATTAN PLOT OF GENOME-WIDE LODs ######
-
-### To generate an organized genome-wide manhattan plot, convert chromosome names to numbers using
-#     ./replace-chrom-name.py ./match_xmac_chroms_xbir-10x_chroms.txt <infile>
-#   in ./Scripts/
-scanone.hk.df_rename <- read.csv("ltreb-only-CTmax_17-1hot-site-tanks.scanone-hk_clean.tsv_chr-renamed.csv")
-
-## load the qqman manhattan plot function
-source("Scripts/input_files/adapted_qqman.R")
-
-## Function: prepares data frame with chr,pos,lod columns to create manhattan plot
-#  make sure 'cutoff_lod' is set to the LOD threshold
-mh_plot<-function(chr_pos_lod){
-  cpl.df <- as.data.frame(chr_pos_lod)
-  data_trim<-{}
-  # if using non-integer chrom names (i.e. not group numbers),
-  # use this instead of following line
-  # data_trim$CHR<-chr_to_group(as.character.factor(cpl.df$chr))
-  data_trim$CHR<-cpl.df$chr
-  data_trim$BP<-(cpl.df$pos)*1e6
-  data_trim$P<-cpl.df$lod
-  data_trim<-as.data.frame(data_trim)
-  data_trim<-na.omit(data_trim)
-  # data_trim$CHR <- as.character.factor(data_trim$CHR)
-  data_trim$CHR<-data_trim$CHR
-  manhattan(data_trim,genomewideline=cutoff_lod,suggestiveline=-1, cex.axis=1.5, cex.lab=4)
-  
-  return(data_trim)
-}
-
-## look at all of the peaks that surpass the genome-wide LOD threshold
-scanone.hk.df_rename[scanone.hk.df_rename$lod>cutoff_lod,]
-# ScyDAA6-2113-HRSCAF-2539:8811359  22 8.811359 4.366771
-# ScyDAA6-2113-HRSCAF-2539:8831590  22 8.831590 4.361586
-# ScyDAA6-2113-HRSCAF-2539:8851788  22 8.851788 4.356347
-
-#  and all those under the 2-LOD interval
-scanone.hk.df_rename[scanone.hk.df_rename$lod>lint2 & scanone.hk.df_rename$chr == "22" ,]
-write.table(scanone.hk.df_rename[scanone.hk.df_rename$lod>lint2 & scanone.hk.df_rename$chr == "22" ,],'ltreb-ctmax_grp22-all-markers-under-2LOD_chr-pos-lod.tsv',sep="\t",row.names=F,quote=F)
-
-## plot
-pdf("chr22-ctmax-qtl_first-scan_genome-wide-manhattan.pdf",10.5,5.5)
-mh_plot(scanone.hk.df_rename)                                         # genome-wide
-title(main="LTREB CTmax QTL: QTL map ctmax~geno+hi+17sig.site.tanks")
-dev.off()
-pdf("chr22-ctmax-qtl_first-scan_chr22-manhattan.pdf",5.3,5.3)
-mh_plot(scanone.hk.df_rename[scanone.hk.df_rename$chr == "22" ,])     # particular chromosome
-dev.off()
-
-
-###### CALCULATE CORRELATION BETWEEN CTMAX AND GENOME-WIDE ANCESTRY ######
-
-## load phenotype data (individuals with excess hybrid_index and heterozygosity have already been removed)
-pheno_data <- read.table('LTREB-only-CTmax-phenos-w-hi-het_1hot-site-tank_clean.tsv',header=T)
-pheno_data <- pheno_data[pheno_data$hybrid_index>0.15 & pheno_data$hybrid_index<0.85,] # only keep individuals with hybrid index between 0.15 and 0.85
-hi<-pheno_data$hybrid_index     # genome-wide X.malinche ancestry proportion
-het<-pheno_data$heterozygosity  # genome-wide heterozygosity proportion
-ctmax<-pheno_data$ctmax         # CTmax
-
-## look at correlation between CTmax and genome-wide X. malinche ancestry (hybrid index)
-model <- lm(ctmax~hi)
-summary(model)
-cor.test(ctmax,hi,method="pearson") # ctmax,hi: r=+0.1185137, pval=0.1472
-# plot correlation
-pdf("CTmax-vs-genome-wide-ancestry_corr-plot.pdf",6,6)
-plot(hi,ctmax,pch = 16, cex = 1.3, col = "light grey", main = "CTmax and genome-wide X. malinche ancestry",xlab="hybrid index",ylab="CTmax (Celsius)")
-abline(34.7295,2.1980, lwd = 3, col="dark blue")
-dev.off()
-
-## look at correlation between CTmax and genome-wide heterozygosity)
-model <- lm(ctmax~het)
-summary(model)
-cor.test(ctmax,het,method="pearson") # ctmax,het: r=-0.02285036, pval=0.7806
-# plot correlation
-pdf("CTmax-vs-genome-wide-heterozygosity_corr-plot.pdf",6,6)
-plot(het,ctmax,pch = 16, cex = 1.3, col = "light salmon", main = "CTmax and genome-wide heterozygosity",xlab="heterozygosity",ylab="CTmax (Celsius)")
-abline(35.9760,-0.2317, lwd = 3, col="dark blue")
-dev.off()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-pdf("~/Documents/R:QTL/plotRF_preformLinkageGroups.pdf", height = 70)
-par(mfrow=c(9,1))
-plotRF(Costus, chr = 1, alternate.chrid=TRUE)
-plotRF(Costus, chr = 2, alternate.chrid=TRUE)
-plotRF(Costus, chr = 3, alternate.chrid=TRUE)
-plotRF(Costus, chr = 4, alternate.chrid=TRUE)
-plotRF(Costus, chr = 5, alternate.chrid=TRUE)
-plotRF(Costus, chr = 6, alternate.chrid=TRUE)
-plotRF(Costus, chr = 7, alternate.chrid=TRUE)
-plotRF(Costus, chr = 8, alternate.chrid=TRUE)
-plotRF(Costus, chr = 9, alternate.chrid=TRUE)
-dev.off()
 
 ## infer linkage groups
 ## Two markers will be placed in the same linkage groups if they have estimated 

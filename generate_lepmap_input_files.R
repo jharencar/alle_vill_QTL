@@ -8,16 +8,16 @@ rm(list = ls())
 #library(readr)
 library(dplyr)
 
-setwd("~/Google Drive/My Drive/Costus/genetic_mapping/R:qtl/aHMM/concatenated_files/")
+setwd("/Users/juliaharencar/Documents/Github/alle_vill_QTL/aHMM/full_final_posteriors/concatenated_files_unthinned")
 
 files <- list.files(".", pattern = "*posterior")
-files <- files[grep("HYBR", files)]
+#files <- files[grep("HYBR", files)]
 
 df <- c()
 
 for (i in files) {
   id <- strsplit(i, ".", fixed = TRUE)[[1]][1]
-  sample_id <- substr(id, 1, nchar(id) - 5)
+  sample_id <- substr(id, 1, nchar(id) - 3)
   #pop <- substr(id, nchar(id) - 3, nchar(id))
   post <- read.table(i, sep = "\t", header = FALSE)
   # rename cols 
@@ -48,7 +48,8 @@ for (i in files) {
 rownames(df) <- NULL
 
 dim(df)
-#[1]   502 16082
+#[1]   414 94695 - MINE
+#[1]   502 16082 - KAU
 
 colnames(df) <- df[1,]
 df <- df[-1,]

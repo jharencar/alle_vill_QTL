@@ -55,7 +55,7 @@ rownames(df) <- NULL
 
 dim(df)
 #KAU   502 16082
-#JGH   417 16283 
+#JGH   
 
 colnames(df) <- df[1,]
 df <- df[-1,]
@@ -63,7 +63,7 @@ df <- df[-1,]
 View(df)
 
 
-write.csv(df, "/Users/juliaharencar/Documents/Github/alle_vill_QTL/data.csv", row.names = FALSE, quote = FALSE)
+write.csv(df, "/Users/juliaharencar/Documents/Github/alle_vill_QTL/f3gen.csv", row.names = FALSE, quote = FALSE)
 
 #write.csv(df[,1:100], "~/Documents/R:QTL/F2gen_subset.csv", row.names = FALSE, quote = FALSE)
 
